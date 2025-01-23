@@ -1,20 +1,23 @@
 #include <string.h>	// Debugging.
 #include <stdio.h>	// Debugging.
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <time.h>
 #include <assert.h>
 #include "flatfiledb.h"
 
 
-void db::print_current_timestamp(const char *TimestampFormat) {
+void print_current_timestamp(const char *TimestampFormat) {
+	if (TimestampFormat == NULL) TimestampFormat = Timestamp_Format;
+
 	timestamp_t buffer;
 	struct tm* tm_info;
 
 	time_t timer = time(NULL);
 	tm_info = localtime(&timer);
 
-	auto len = strftime(buffer, 26, TimestampFormat, tm_info);
+	size_t len = strftime(buffer, 26, TimestampFormat, tm_info);
 	char
 		*c = buffer+len-1,	// I thought strftime's return didn't include the null. Not sure why the -1 is needed.
 		*cc = c-1
@@ -25,7 +28,7 @@ void db::print_current_timestamp(const char *TimestampFormat) {
 	printf("%s\n", buffer);
 };
 
-bool db::print_rows(const char* path) {
+bool print_rows(const char* path) {
 	FILE *f = fopen(path, "r"); if (f==0) return false;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
@@ -45,13 +48,13 @@ bool db::print_rows(const char* path) {
 	return true;
 }
 
-void db::free_row(row_t *r) {
+void free_row(row_t *r) {
 	if (!r) return;
 	if (r->file) free(r->file);
 	free(r);
 }
-void db::free_rows(rows_t *target) {
-	if (target == nullptr) return;
+void free_rows(rows_t *target) {
+	if (target == NULL) return;
 		for (num_rows i = 0; i < target->ct; i++) {
 			free_row(target->row[i]);
 		}
@@ -59,17 +62,17 @@ void db::free_rows(rows_t *target) {
 	free(target);
 }
 
-tags_t db::get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
+tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	tags_t ret = 0;
 
 	char writable_column_string[strnlen(column_string, MAX_COLUMN_LENGTH)];
 	strcpy(writable_column_string, column_string);
-	char *token[MAX_COLUMN_LENGTH], *buff = nullptr, *saveptr;
+	char *token[MAX_COLUMN_LENGTH], *buff = NULL, *saveptr;
 	token_length_t token_len = 0;
 	for (
 			buff = strtok_r(writable_column_string, &Tag_Delims[0], &saveptr)
 		;
-			buff != nullptr
+			buff != NULL
 		;
 			buff = strtok_r(NULL, &Tag_Delims[0], &saveptr)
 	) {
@@ -90,20 +93,20 @@ tags_t db::get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	return ret;
 }
 
-db::row_t* db::get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
+row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
 	static_assert(sizeof(Column_Delims-1) > 0, "No column delimiters have been hard-coded.");
 	assert(!(n_criteria && p_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 
 	int row_string_length = strnlen(row_string, MAX_ROW_LENGTH);
 	char writable_row_string[row_string_length];
 	strcpy(writable_row_string, row_string);
-	char *buff = nullptr, *saveptr;
+	char *buff = NULL, *saveptr;
 	char token[NUM_COLUMNS][MAX_COLUMN_LENGTH];
 	token_length_t token_len = 0;
 	for (
 			buff = strtok_r(writable_row_string, Column_Delims, &saveptr)
 		;
-			buff != nullptr
+			buff != NULL
 		;
 			buff = strtok_r(NULL, Column_Delims, &saveptr)
 	) {
@@ -113,10 +116,10 @@ db::row_t* db::get_row_if_match(const num_rows row_num, const char *row_string, 
 	if (token_len < 2 || token_len > sizeof(Column_Names)/sizeof(Column_Names[0])) {
 		// No warning for empty lines.
 		if (token_len > 0) fprintf(stderr, "Invalid number of columns for row #%lu. Columns detected: %hu.\n", row_num, token_len);
-		return nullptr;
+		return NULL;
 	}
 
-	if (p_criteria == nullptr || (token_len == 3)) {	// The only column that may be missing from a valid entry is the tags.
+	if (p_criteria == NULL || (token_len == 3)) {	// The only column that may be missing from a valid entry is the tags.
 		// Use tags_t as bitmask to check tags.
 		tags_t tags;
 		if (
@@ -142,20 +145,20 @@ db::row_t* db::get_row_if_match(const num_rows row_num, const char *row_string, 
 			return row;
 		}
 	}
-	return nullptr;
+	return NULL;
 }
 
-db::rows_t* db::get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
+rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
 	if (n_criteria && p_criteria && (*p_criteria & *n_criteria)) {
 		fprintf(stderr, "Can't match row with conflicting positive and negative match criteria.\n");
-		return nullptr;
+		return NULL;
 	}
 
-	FILE *f = fopen(file_path, "r"); if (f==0) return nullptr;
+	FILE *f = fopen(file_path, "r"); if (f==0) return NULL;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
 		fclose(f);
-		return nullptr;
+		return NULL;
 	}
 
 	num_rows
@@ -169,7 +172,8 @@ db::rows_t* db::get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria,
 	ssize_t chars_read;
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
-		if ( row_t *row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
+		row_t *row;
+		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
 			if (++num_rows_matched > row_array_size) {
 				row_array_size *= 2;
 				row_array = (row_t**)realloc(row_array, row_array_size * sizeof(row_t*));
@@ -188,20 +192,20 @@ db::rows_t* db::get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria,
 		return ret;
 	}
 	free(row_array);
-	return nullptr;
+	return NULL;
 }
 
-db::row_t* db::get_current(const file_path_t file_path) {
-	tags_t criteria = encode_tag(Tag::CURRENT);
-	rows_t *res = get_rows_by_tag(file_path, &criteria);
-	if (res == nullptr) {
+row_t* get_current(const file_path_t file_path) {
+	tags_t criteria = encode_tag(TAG_CURRENT);
+	rows_t *res = get_rows_by_tag(file_path, &criteria, NULL);
+	if (res == NULL) {
 		fprintf(stderr, "No matching rows found.\n");
-		return nullptr;
+		return NULL;
 	}
 	if (res->ct != 1) {	// There should only be one current entry.
 		fprintf(stderr, "Unexpected number of rows matched.\n");
 		free_rows(res);
-		return nullptr;
+		return NULL;
 	}
 
 	row_t *ret = res->row[0];
@@ -212,7 +216,7 @@ db::row_t* db::get_current(const file_path_t file_path) {
 }
 
 
-/*bool db::sanity_check(char *file_path) {
+/*bool sanity_check(char *file_path) {
 	rows *res = get_rows_by_tag(&criteria);
 	if (res == nullptr) {
 		std::cerr << "No matching rows found." << std::endl;
@@ -234,8 +238,8 @@ db::row_t* db::get_current(const file_path_t file_path) {
 	return true;
 }*/
 
-//bool db::append_new_current(const file_path_t data_file_path, const file_path_t wallpaper_file_path) {
-/*bool db::append_new_current(const file_path_t data_file_path, row_t *new_entry) {
+//bool append_new_current(const file_path_t data_file_path, const file_path_t wallpaper_file_path) {
+/*bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	if (!new_entry) return false;
 
 	FILE *f = fopen(data_file_path, "a"); if (f==0) return false;
@@ -269,7 +273,7 @@ db::row_t* db::get_current(const file_path_t file_path) {
 	fclose(f);
 	return true;
 }*/
-bool db::append_new_current(const file_path_t data_file_path, row_t *new_entry) {
+bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	if (!new_entry) return false;
 
 	bool created_new_file;
@@ -326,10 +330,13 @@ bool db::append_new_current(const file_path_t data_file_path, row_t *new_entry) 
 
 	char *string = NULL;
 	size_t size = 0;
-	tags_t current_mask = encode_tag(Tag::CURRENT);
+	/*tags_t current_mask = encode_tag(Tag::CURRENT);*/
+	tags_t current_mask = encode_tag(TAG_CURRENT);
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
-		if ( row_t *row = get_row_if_match(++row_num, string, &current_mask) ) {
+		/*if ( row_t *row = get_row_if_match(++row_num, string, &current_mask) ) {*/
+		row_t *row;
+		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL) ) {
 			char tag_string[Max_Tag_String_Len];	// Name takes precedence over previously defined.
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
@@ -374,7 +381,7 @@ bool db::append_new_current(const file_path_t data_file_path, row_t *new_entry) 
 }
 
 
-/*db::tags_t db::sum_tags(tags_t a, tags_t b) {
+/*tags_t db::sum_tags(tags_t a, tags_t b) {
 	return a & b;
 }*/
 
@@ -382,11 +389,11 @@ bool db::append_new_current(const file_path_t data_file_path, row_t *new_entry) 
 	return true;
 }*/
 
-void db::gen_tag_string(char *string, tags_t tags) {
+void gen_tag_string(char *string, tags_t tags) {
 	unsigned short total_len = 0;
 	string[0] = '\0';
 	for (unsigned short i = 0; i < sizeof(tags_known)/sizeof(tags_known[0]); i++) {	// Will they all be populated?
-		if (tags & encode_tag((Tag)i)) {
+		if (tags & encode_tag(i)) {
 			if (string[0] == '\0') {
 				unsigned short len = strlen(tags_known[i].text);
 				strcpy(string, tags_known[i].text);
@@ -402,7 +409,7 @@ void db::gen_tag_string(char *string, tags_t tags) {
 	}
 }
 
-num_rows db::add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod) {
+num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod) {
 	FILE *f = fopen(file_path, "r+b"); if (f==0) return 0;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
@@ -429,7 +436,8 @@ num_rows db::add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_
 	size_t size = 0;
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
-		if ( row_t *row = get_row_if_match(++row_num, string, criteria) ) {
+		row_t *row;
+		if ( row = get_row_if_match(++row_num, string, criteria, NULL) ) {
 			if ( (row->tags & *tags_mod) == *tags_mod) {
 				// All tags requested are already associated with the row.
 				fprintf(stderr, "Database entry already associated with all requested tags. Ignoring.\n");
@@ -461,13 +469,13 @@ num_rows db::add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_
 
 	return num_rows_matched;
 }
-/*bool db::add_tag_to_current(Tag target_tag) {
+/*bool add_tag_to_current(Tag target_tag) {
 	return true;
 }*/
 
-bool db::del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
+bool del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
 	assert(!(n_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
-	assert(ret_rows != nullptr);
+	assert(ret_rows != NULL);
 
 	FILE *f = fopen(file_path, "r"); if (f==0) return false;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
@@ -492,7 +500,8 @@ bool db::del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t 
 	size_t size = 0;
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
-		if ( row_t *row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
+		row_t *row;
+		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
 			if (ret_rows->ct == 0) {
 				if (! (ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
 					fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);

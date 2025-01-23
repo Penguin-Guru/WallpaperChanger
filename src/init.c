@@ -1,37 +1,34 @@
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>	// For free.
+#include <stdio.h>	// For fprintf.
 #include "init.h"
 #include "cli.h"
 #include "config.h"
 
-using namespace init;
+handler_set_list_t run_mode_params;
 
-namespace init {
-	handler_set_list_t run_mode_params;
-	static void clean_up();
-}
-
-bool init::handle_config_file(arg_list_t *al) {
-	assert(al != nullptr);
+bool handle_config_file(arg_list_t *al) {
+	assert(al != NULL);
 	assert(al->ct > 0);
-	assert(al->args[0] != nullptr);
-	assert(al->args[al->ct-1] != nullptr);
+	assert(al->args[0] != NULL);
+	assert(al->args[al->ct-1] != NULL);
 	while (al->ct-- > 0) {
 		// Note: al->ct now points to the file index, not one ahead.
-		if (config::parse_file(al->args[al->ct])) num_config_files_loaded++;
+		if (parse_file(al->args[al->ct])) num_config_files_loaded++;
 		else return false;
 	}
 	return true;
 }
 
-bool init::handle_print_help(arg_list_t *al) {
-	assert(al == nullptr);
+bool handle_print_help(arg_list_t *al) {
+	assert(al == NULL);
 	printf("Parameters:\n");
 	for (param_ct i = 0; i < num_params_known; i++) {
 		const parameter_t *param = &params_known[i];
-		assert(param->handler_set.name != nullptr);
+		assert(param->handler_set.name != NULL);
 		printf("\n\t%s\n", param->handler_set.name);
-		if (param->handler_set.description != nullptr)
+		if (param->handler_set.description != NULL)
 			printf("\t\tDescription: %s\n", param->handler_set.description);
 
 		printf("\t\tArguments expected: %hd\n", param->handler_set.arg_list->ct);
@@ -47,20 +44,20 @@ bool init::handle_print_help(arg_list_t *al) {
 	exit(0);
 }
 
-void init::free_params(handler_set_list_t *list) {
+void free_params(handler_set_list_t *list) {
 	for (param_ct p = 0; p < list->ct; p++) {
 		free_args(list->hs[p]->arg_list);
 	}
 	free(list->hs);
 }
-bool init::register_param(const parameter_t *p, arg_list_t *al) {
-	assert(al == nullptr || al->ct > 0);
-	handler_set_list_t *list = nullptr;
+bool register_param(const parameter_t *p, arg_list_t *al) {
+	assert(al == NULL || al->ct > 0);
+	handler_set_list_t *list = NULL;
 	switch (p->type) {
-		case ParamType::RUN :
+		case RUN :
 			list = &run_mode_params;
 			break;
-		case ParamType::INIT :
+		case INIT :
 			if (! p->handler_set.fn(al)) {
 				if (verbosity >= 2) printf("Handling init type parameter: \"%s\"\n", p->handler_set.name);	// Improve failure message clarity.
 				// Caller invokes clean_up().
@@ -82,14 +79,13 @@ bool init::register_param(const parameter_t *p, arg_list_t *al) {
 	return true;
 }
 
-static void init::clean_up() {
+static void clean_up_init() {
 	free_params(&run_mode_params);
 }
 
-//inline bool init::load_default_config_file() {
-inline const char* init::load_default_config_file() {
-//inline const char* init::load_default_config_file(const char* abort_msg) {
-	char *config_dir = xdg::config::home();
+static inline const char* load_default_config_file() {
+//inline const char* load_default_config_file(const char* abort_msg) {
+	char *config_dir = get_xdg_config_home();
 	if (!config_dir) {
 		/*fprintf(stderr, "Init: Failed to identify config directory.\n");
 		return false;*/
@@ -98,7 +94,7 @@ inline const char* init::load_default_config_file() {
 	const char *config_file_name = "/" DEFAULT_CONFIG_FILE_NAME;
 	//char *pos;
 	size_t name_len = strlen(config_file_name);
-	size_t dir_len = config_dir == nullptr ? 0 : strlen(config_dir);;
+	size_t dir_len = config_dir == NULL ? 0 : strlen(config_dir);;
 	if (dir_len == 0) {
 		/*fprintf(stderr, "Init: Default config directory path is empty.\n");
 		free(config_dir);
@@ -120,23 +116,23 @@ inline const char* init::load_default_config_file() {
 	//*((char*)mempcpy(pos, config_file_name, name_len)) = '\0';
 	mempcpy(config_path + dir_len, config_file_name, name_len);
 	config_path[dir_len + name_len] = '\0';
-	//config::parse_file(config_path);
+	//parse_file(config_path);
 	//char *this_is_stupid = &config_path[0];
 	file_path_t silly = config_path;
 	arg_list_t this_is_stupid = {1, &silly};
 	handle_config_file(&this_is_stupid);
 
 	//return true;
-	return nullptr;
+	return NULL;
 }
 
-bool init::init(int argc, char** argv) {
-//int_fast8_t init::init(int argc, char** argv) {
-	atexit(clean_up);
+bool init(int argc, char** argv) {
+//int_fast8_t init(int argc, char** argv) {
+	atexit(clean_up_init);
 	//bool proceed = true;
-	const char *abort_msg = nullptr;
+	const char *abort_msg = NULL;
 
-	if (!cli::parse_params(argc, argv)) {	// Parsed first, so config file path can be overridden.
+	if (!parse_params(argc, argv)) {	// Parsed first, so config file path can be overridden.
 		//fprintf(stderr, "Init: Failed to parse command-line parameters.\n");
 		//proceed = false;
 		abort_msg = "Failed to parse command-line parameters.";

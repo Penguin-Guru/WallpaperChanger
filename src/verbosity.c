@@ -1,11 +1,13 @@
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>	// For strtoul.
+#include <stdio.h>	// For printf.
 #include "verbosity.h"
 
 uint_fast8_t verbosity = 1;
 
-bool init::handle_verbosity(arg_list_t *al) {
-	assert(al != nullptr);
+bool handle_verbosity(arg_list_t *al) {
+	assert(al != NULL);
 	assert(al->ct == 1);
 	assert(al->args);
 	assert(al->args[0]);

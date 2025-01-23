@@ -4,9 +4,12 @@
 #include <xcb/xcb_util.h>
 #include <xcb/xcb_errors.h>
 //#include <xcb/xcbext.h>
+#include <stdlib.h>	// For free.
+#include <stdio.h>	// For fprintf.
 #include "graphics.h"
 #include "image.h"
 #include "verbosity.h"
+//#include "util.h"
 
 
 /* Utility functions: */
@@ -109,14 +112,16 @@ bool init_xcb() {
 			fprintf(stderr, "Error detecting image_byte_order. Value is: %hhd\n", tmp);
 			return false;
 		}
-		byte_order = static_cast<xcb_image_order_t>(tmp);
+		/*byte_order = static_cast<xcb_image_order_t>(tmp);*/
+		byte_order = (xcb_image_order_t)(tmp);
 
 		tmp = setup->bitmap_format_bit_order;
 		if (!(tmp == 0 || tmp == 1)) {
 			fprintf(stderr, "Error detecting byte_order. Value is: %hhd\n", tmp);
 			return false;
 		}
-		bit_order = static_cast<xcb_image_order_t>(tmp);
+		/*bit_order = static_cast<xcb_image_order_t>(tmp);*/
+		bit_order = (xcb_image_order_t)(tmp);
 	}
 	scanline_pad = setup->bitmap_format_scanline_pad;
 	scanline_unit = setup->bitmap_format_scanline_unit;
@@ -483,7 +488,9 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 	} else {
 		if (verbosity > 0) fprintf(stderr, "Image loaded is not in native format.\n");
 
-		if (xcb_image_t *tmp = xcb_image_native(conn, image, true)) {
+		/*if (xcb_image_t *tmp = xcb_image_native(conn, image, true)) {*/
+		xcb_image_t *tmp;
+		if (tmp = xcb_image_native(conn, image, true)) {
 			if (tmp != image) {
 				if (verbosity > 0 && tmp->data == image->data) printf("tmp->data == image->data\n");
 				xcb_image_destroy(image);

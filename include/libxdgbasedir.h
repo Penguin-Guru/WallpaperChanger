@@ -14,12 +14,6 @@
 #define XDG_CONFIG_HOME "XDG_CONFIG_HOME"
 
 
-namespace xdg {
-	namespace config {
-		char* home();
-	}
-	namespace data {
-		char* home();
-	}
-}
+char* get_xdg_config_home();
+char* get_xdg_data_home();
 

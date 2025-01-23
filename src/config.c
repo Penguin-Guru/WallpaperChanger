@@ -1,6 +1,8 @@
 
 #include <sys/stat.h>
 #include <string.h>
+#include <stdlib.h>	// For free.
+#include <stdio.h>	// For fprintf.
 #include "config.h"
 #include "init.h"
 
@@ -9,10 +11,7 @@
 //#endif
 
 
-//namespace fs = std::filesystem;
-//using namespace init::config;
-
-bool init::config::parse_line(char *line) {
+bool parse_line(char *line) {
 //bool parse_line(char *line) {
 	char *op;
 	if (op = strpbrk(line, "=:")) {	// Move these later.
@@ -21,29 +20,29 @@ bool init::config::parse_line(char *line) {
 		strlcpy(label, line, op - line);
 
 		// Identify the operation/parameter (label).
-		const init::parameter_t *param = nullptr;
-		for (auto i = 0; i < init::num_params_known; i++) {
-			if (!strcmp(label, init::params_known[i].flag_pair.long_flag)) {
-				param = &init::params_known[i];
+		const parameter_t *param = NULL;
+		for (param_ct i = 0; i < num_params_known; i++) {
+			if (!strcmp(label, params_known[i].flag_pair.long_flag)) {
+				param = &params_known[i];
 				break;
 			}
 		}
 		if (!param) return false;
 
 		// Now we know how many terms/arguments the operation/parameter expects.
-		init::param_arg_ct etc = param->handler_set.arg_list->ct;
-		//init::argument args[etc] = {0};
+		param_arg_ct etc = param->handler_set.arg_list->ct;
+		//argument args[etc] = {0};
 		//char* args[etc] = {0};
 		//argument args[etc] = {0};
-		argument args[etc];
+		argument args[etc] = {};
 
 		// Parse the terms/arguments.
-		char *buff = nullptr, *saveptr;
+		char *buff = NULL, *saveptr;
 		const char Arg_Delims[] = ",; \t\r\n\v\f";	// Move these later.
-		init::param_arg_ct arg_ct = 0;
+		param_arg_ct arg_ct = 0;
 		for(
 			buff = strtok_r(op+1, Arg_Delims, &saveptr)
-			;buff != nullptr && arg_ct <= etc;
+			;buff != NULL && arg_ct <= etc;
 			buff = strtok_r(NULL, Arg_Delims, &saveptr)
 		) {
 			//strcpy(args[arg_ct++], buff);
@@ -74,20 +73,18 @@ bool init::config::parse_line(char *line) {
 				fprintf(stderr, "Invalid parameter type for \"%s\".\n", param->flag_pair.long_flag);
 				return false;
 		}*/
-		//return init::register_param(param, arg_ct, args);
+		//return register_param(param, arg_ct, args);
 		arg_list_t al = {
 			.ct=arg_ct,
 			.args=args
 		};
-		return init::register_param(param, &al);
+		return register_param(param, &al);
 	}
 	// Unary operations/parameters are not currently supported.
 	return false;
 }
 
-//bool init::config::parse_file(const file_path_t file_path) {
-bool init::config::parse_file(const_file_path_t file_path) {
-//bool parse_file(file_path_t file_path) {
+bool parse_file(const file_path_t file_path) {
 	// Not currently offering to create the file.
 
 	/*if (!access(file_path, F_OK)) {
@@ -121,7 +118,7 @@ bool init::config::parse_file(const_file_path_t file_path) {
 	
 	if (verbosity > 1) printf("Loading config file: \"%s\"\n", file_path);
 
-	char *line = nullptr;
+	char *line = NULL;
 	size_t size = 0;
 	while (getline(&line, &size, f) > 0) {
 		// Ignore commented lines.
@@ -135,6 +132,6 @@ bool init::config::parse_file(const_file_path_t file_path) {
 	free(line);
 
 	fclose(f);
-	//init::num_config_files_loaded++;
+	//num_config_files_loaded++;
 	return true;
 }

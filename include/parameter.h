@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "argument.h"
 
 /*/
@@ -31,49 +32,44 @@
  * 	https://en.wikipedia.org/wiki/Parameter_(computer_programming)#Parameters_and_arguments
 /*/
 
-namespace init {
-	using param_name = const char *;
-	using param_description = const char *;
-	typedef bool(*param_handler_t)(arg_list_t *al);
-	typedef struct {
-		const param_name name;
-			// Name is stored here to allow for verbose debug messages from handler.
-			// It also improves readability for pairing of hard-coded values with flag_pair_t.
-		const param_description description;
-			// Description is used exclusively for printing help text.
-			// Storing it here improves readability for pairing of hard-coded values with flag_pair_t.
-		const param_handler_t fn = nullptr;
-		arg_list_t *arg_list;	// Heap.
-	} handler_set_t;
+typedef const char * param_name ;
+typedef const char * param_description;
+typedef bool(*param_handler_t)(arg_list_t *al);
+typedef struct {
+	const param_name name;
+		// Name is stored here to allow for verbose debug messages from handler.
+		// It also improves readability for pairing of hard-coded values with flag_pair_t.
+	const param_description description;
+		// Description is used exclusively for printing help text.
+		// Storing it here improves readability for pairing of hard-coded values with flag_pair_t.
+	const param_handler_t fn;
+	arg_list_t *arg_list;	// Heap.
+} handler_set_t;
 
-	using flag_t = char* const;
-	using const_flag_t = const char* const;
-	// Investigate eliminating const_flag_t type. This is very ugly.
-	// It may be more clear for flag_t to be renamed flag_value_t.
-	using long_flag_t = flag_t;	// Support multi-character short flags-- for now.
-	using short_flag_t = flag_t;
-	using const_long_flag_t = const_flag_t;	// Support multi-character short flags-- for now.
-	using const_short_flag_t = const_flag_t;
-	typedef struct {
-		const_long_flag_t long_flag;
-		const_short_flag_t short_flag;
-	} flag_pair_t;
+typedef char* const flag_t;
+// It may be more clear for flag_t to be renamed flag_value_t.
+typedef flag_t long_flag_t;	// Support multi-character short flags-- for now.
+typedef flag_t short_flag_t;
+typedef struct {
+	const long_flag_t long_flag;
+	const short_flag_t short_flag;
+} flag_pair_t;
 
-	enum ParamType {
-		INIT,
-		RUN
-	};
+enum ParamType {
+	INIT,
+	RUN
+};
 
-	typedef struct {
-		const handler_set_t handler_set;
-		flag_pair_t flag_pair;
-		ParamType type;
-	} parameter_t;	// Parameter definition. param_def_t
+typedef struct {
+	const handler_set_t handler_set;
+	flag_pair_t flag_pair;
+	enum ParamType type;
+} parameter_t;	// Parameter definition. param_def_t
 
-	using param_ct = uint_fast8_t;	// Limits the number of parameters the application may accept.
-	typedef struct {
-		const handler_set_t **hs;	// Heap.
-		// Is that double pointer necessary?
-		param_ct ct;
-	} handler_set_list_t;
-}
+typedef uint_fast8_t param_ct;	// Limits the number of parameters the application may accept.
+typedef struct {
+	const handler_set_t **hs;	// Heap.
+	// Is that double pointer necessary?
+	param_ct ct;
+} handler_set_list_t;
+

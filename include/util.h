@@ -3,19 +3,16 @@
 //#include <limits.h>
 #include <stdint.h>
 
-const uint_fast8_t
-	MAX_COLUMN_TITLE_LENGTH = 10,
-	MAX_COLUMN_LENGTH = 255,
-	MAX_TIMESTAMP_LENGTH = 30,	// Hopefully safe.
-	MAX_DIRECTORY_DEPTH = 15
-;
+#define MAX_COLUMN_TITLE_LENGTH 10
+#define MAX_COLUMN_LENGTH 255
+#define MAX_TIMESTAMP_LENGTH 30	// Hopefully safe.
+#define MAX_DIRECTORY_DEPTH 15
 
 
 // Used primarily in db::row_t:
-using tags_t = unsigned char;	// Bitmask.
-using timestamp_t = char[MAX_TIMESTAMP_LENGTH];
-using file_path_t = char*;
-using const_file_path_t = const char*;
+typedef unsigned char tags_t;	// Bitmask.
+typedef char timestamp_t[MAX_TIMESTAMP_LENGTH];
+typedef char* file_path_t;
 
-using num_rows = uint_fast32_t;
+typedef uint_fast32_t num_rows;
 

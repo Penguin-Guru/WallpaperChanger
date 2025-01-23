@@ -1,26 +1,29 @@
-// We want POSIX.1-2008 + XSI, i.e. SuSv4, features.
-#define _XOPEN_SOURCE 700
+// Support SuSv4 features (POSIX.1-2008 + XSI):
+//#define _XOPEN_SOURCE 700
 
-/* If the C library can support 64-bit file sizes
-   and offsets, using the standard names,
-   these defines tell the C library to do so. */
+// Support larger files:
 #define _LARGEFILE64_SOURCE
 #define _FILE_OFFSET_BITS 64 
 
-//#define _GNU_SOURCE
+#define _GNU_SOURCE	// For strchrnul and mempcpy. Probably supersedes _XOPEN_SOURCE.
 
 #include <string.h>
 #include <ftw.h>	// Used for finding new wallpapers.
 //#include <dirent.h>	// Used for finding new wallpapers.
+//`man fts` is another option...
 #include <magic.h>	// Used for detecting MIME content types.
 #include <unistd.h>	// Used for reading symlinks.
-#include <ctime>	// ?
+//#include <ctime>	// ?
+#include <time.h>
 #include <errno.h>
+#include <stdlib.h>	// For free.
+#include <stdio.h>	// For fprintf.
 #include "wallpaperchanger.h"
 #include "init.h"
 #include "image.h"
 #include "flatfiledb.h"
 #include "graphics.h"
+
 
 
 void clean_up() {
@@ -42,15 +45,15 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		return false;
 	}
 
-	db::row_t new_entry;
+	row_t new_entry;
 	const size_t len = strlen(wallpaper_file_path);
 	if (!len) {
 		fprintf(stderr, "Invalid length for file path.\n");
 		return false;
 	}
 	new_entry.file = wallpaper_file_path;
-	new_entry.tags = tags | db::encode_tag(db::Tag::CURRENT);	// Make sure it's tagged as current.
-	if (!db::append_new_current(data_file_path, &new_entry)) {
+	new_entry.tags = tags | encode_tag(TAG_CURRENT);	// Make sure it's tagged as current.
+	if (!append_new_current(data_file_path, &new_entry)) {
 		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
 		return false;
 	}
@@ -66,11 +69,11 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 			"Failed to parse wallpaper directory (\"%s\") from path: \"%s\"\n",
 			"/" DEFAULT_WALLPAPER_DIR_NAME "/", full_path
 		);
-		return nullptr;
+		return NULL;
 	}
 	start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
 	//start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME) + 1;
-	if (start_of_relative_path - full_path < 0) return nullptr;	// Quick bounds check.
+	if (start_of_relative_path - full_path < 0) return NULL;	// Quick bounds check.
 	return start_of_relative_path;
 	// +2 for the two slashes.
 }
@@ -98,13 +101,13 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 }*/
 //short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 short wallpaper_is_new(const file_path_t wallpaper_file_path) {
-	if (wallpaper_file_path == nullptr || *wallpaper_file_path == '\0') {
+	if (wallpaper_file_path == NULL || *wallpaper_file_path == '\0') {
 		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
 		return -1;
 	}
-	if (s_wallpapers == nullptr) {	// Populate the cache if not already done from previous call.
-		tags_t n_criteria = encode_tag(db::Tag::HISTORIC);	// Do not bias toward wallpapers set more often.
-		db::rows_t *rows = db::get_rows_by_tag(data_file_path, nullptr, &n_criteria);
+	if (s_wallpapers == NULL) {	// Populate the cache if not already done from previous call.
+		tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+		rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria);
 		if (!rows || rows->ct <= 0) {
 			//fprintf(stderr, "No matching entries in database.\n");
 			if (rows) free_rows(rows);
@@ -167,7 +170,7 @@ short check_mime_type(const file_path_t filepath) {
 	magic_load(magic,NULL);
 	const char *mime_type = magic_file(magic, filepath);
 	//magic_close(magic);
-	if (mime_type == nullptr || *mime_type == '\0') {
+	if (mime_type == NULL || *mime_type == '\0') {
 		fprintf(stderr, "Failed to detect mime type for file: \"%s\"\n", filepath);
 		magic_close(magic);
 		return 0;	// Continue search.
@@ -200,7 +203,7 @@ short test_file(const file_path_t filepath) {
 	switch (wallpaper_is_new((const file_path_t)filepath)) {
 		case 1:
 			if (verbosity > 0) printf("Found new wallpaper: \"%s\"\n", filepath);
-			set_new_current((const file_path_t)filepath);
+			set_new_current((const file_path_t)filepath, 0);
 			// Purposefully flows into next case.
 		case -1: return 1;	// Stop the search.
 		case 0: return 0;	// Continue search.
@@ -320,26 +323,26 @@ int handle_inode(
 
 /* Parameter handlers: */
 
-bool handle_set(init::arg_list_t *al) {	// It would be nice if this weren't necessary.
+bool handle_set(arg_list_t *al) {	// It would be nice if this weren't necessary.
 	//return set_new_current((const file_path_t)arg[0]);
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	return set_new_current(al->args[0]);
+	return set_new_current(al->args[0], 0);
 	//return did_something = true;
 }
 /*
 // This implementation looks for database entried with the "new" tag.
 // It's commented out because I don't need it and get_row_if_match() would need to support missing timestamp fields.
-bool handle_set_new(init::param_arg_ct argcnt, init::argument *arg) {
+bool handle_set_new(param_arg_ct argcnt, argument *arg) {
 	bool ret;
 	// Choose a recent file.
 	// 	Prefer wallpapers not previously viewed.
 	// 	Prefer newer wallpapers.
 	// 		Consider adding a tag, "new", for wallpapers that have never been set.
 	// 		Avoid looping only the most recent wallpapers.
-	tags_t p_criteria = encode_tag(db::Tag::NEW);
-	tags_t n_criteria = encode_tag(db::Tag::HISTORIC);	// Do not bias toward wallpapers set more often.
-	db::rows *options = db::get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
+	tags_t p_criteria = encode_tag(TAG_NEW);
+	tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	rows *options = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
 	if (options == nullptr) {
 		fprintf(stderr, "get_rows_by_tag() returned nullptr. Is this ok?\n");
 		ret = false;
@@ -348,11 +351,11 @@ bool handle_set_new(init::param_arg_ct argcnt, init::argument *arg) {
 			// TODO: make set_new_current remove the "new" tag from the initial entry. Perhaps simply replace it with "current".
 			ret = set_new_current(options->row[0]->file, options->row[0]->tags);
 		}
-		db::free_rows(options);
+		free_rows(options);
 	}
 	return ret;
 }*/
-bool handle_set_new(init::arg_list_t *al) {
+bool handle_set_new(arg_list_t *al) {
 	assert(al->ct == 0);
 	//int result;
 
@@ -376,7 +379,7 @@ bool handle_set_new(init::arg_list_t *al) {
 		}
 	}*/
 	if (!wallpaper_path) {
-		if (!data_directory) data_directory = xdg::data::home();
+		if (!data_directory) data_directory = get_xdg_data_home();
 		if (!data_directory || strlen(data_directory) == 0) {
 			fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
 			clean_up();
@@ -413,15 +416,15 @@ bool handle_set_new(init::arg_list_t *al) {
 	return false;
 }
 
-/*bool handle_set_recent(init::param_arg_ct argcnt, init::argument *arg) {
-	tags_t n_criteria = encode_tag(db::Tag::HISTORIC);	// Do not bias toward wallpapers set more often.
-	db::ts_query query = {
-		.order = db::Order::DESCENDING,
+/*bool handle_set_recent(param_arg_ct argcnt, argument *arg) {
+	tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	ts_query query = {
+		.order = Order::DESCENDING,
 		.limit = 1,
-		//.n_criteria = encode_tag(db::Tag::HISTORIC)
+		//.n_criteria = encode_tag(TAG_HISTORIC)
 		.n_criteria = n_criteria	// HISTORIC
 	};
-	options = db::get_rows_by_ts(data_file_path, query);
+	options = get_rows_by_ts(data_file_path, query);
 	if (options == nullptr) {
 		fprintf(stderr, "get_rows_by_ts() returned nullptr. Is this ok?\n");
 	} else {
@@ -430,11 +433,11 @@ bool handle_set_new(init::arg_list_t *al) {
 		} else {
 			return set_new_current(options->row[0]->file, options->row[0]->tags);
 		}
-		db::free_rows(options);
+		free_rows(options);
 	}
 	return false;
 }*/
-bool handle_set_fav(init::arg_list_t *al) {
+bool handle_set_fav(arg_list_t *al) {
 	assert(al->ct == 0);
 	// Choose a favourite file.
 	// 	set_wallpaper "$(grep -E '[Ff]avourite\s*$' < "$LogFile" | cut -d\  -f2 | sort -Ru | head -1)"
@@ -443,20 +446,20 @@ bool handle_set_fav(init::arg_list_t *al) {
 	// 		If all favourites have been set on the present day, cycle from last to current.
 	// 			If only the current wallpaper is a favourite, or there are no favourites, do nothing.
 	// 	Otherwise random.
-	tags_t p_criteria = encode_tag(db::Tag::FAVOURITE);
-	tags_t n_criteria = encode_tag(db::Tag::CURRENT);
-	n_criteria |= encode_tag(db::Tag::HISTORIC);	// Do not bias toward wallpapers set more often.
-	db::rows_t *favs = db::get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
+	tags_t p_criteria = encode_tag(TAG_FAVOURITE);
+	tags_t n_criteria = encode_tag(TAG_CURRENT);
+	n_criteria |= encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	rows_t *favs = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
 	// For now, the database entries are in descending chronological order.
 
-	if (favs == nullptr) {
+	if (favs == NULL) {
 		fprintf(stderr, "No favourites were found.\n");
 		return false;
 	}
 	//switch (sizeof(favs)/sizeof(favs[0])) {
 	switch (favs->ct) {
 		case 0:
-			fprintf(stderr, "No favourites were found (and res != nullptr).\n");
+			fprintf(stderr, "No favourites were found (and res != NULL).\n");
 			return false;
 			break;
 		case 1:
@@ -470,10 +473,10 @@ bool handle_set_fav(init::arg_list_t *al) {
 	int which = rand() % favs->ct;
 
 	bool ret = set_new_current(favs->row[which]->file, favs->row[which]->tags | n_criteria);
-	db::free_rows(favs);
+	free_rows(favs);
 	return ret;
 }
-/*bool handle_set_prev(init::param_arg_ct argcnt, init::argument *arg) {
+/*bool handle_set_prev(param_arg_ct argcnt, argument *arg) {
 	// Detect the previous wallpaper?
 	// For this to be useful...
 	// 	The database's "current" should not be modified.
@@ -485,35 +488,35 @@ bool handle_set_fav(init::arg_list_t *al) {
 	// Send it to set_new_current().
 	return true;
 }
-bool handle_set_next(init::param_arg_ct argcnt, init::argument *arg) {
+bool handle_set_next(param_arg_ct argcnt, argument *arg) {
 	// Detect the next wallpaper?
 	// Send it to set_new_current().
 	return true;
 }*/
 
-bool handle_fav_current(init::arg_list_t *al) {
+bool handle_fav_current(arg_list_t *al) {
 	assert(al->ct == 0);
-	tags_t criteria = encode_tag(db::Tag::CURRENT);
-	tags_t tags_to_add = encode_tag(db::Tag::FAVOURITE);
-	if (db::add_tag_by_tag(data_file_path, &criteria, &tags_to_add) == 0) {
+	tags_t criteria = encode_tag(TAG_CURRENT);
+	tags_t tags_to_add = encode_tag(TAG_FAVOURITE);
+	if (add_tag_by_tag(data_file_path, &criteria, &tags_to_add) == 0) {
 		fprintf(stderr, "Failed to mark current as favourite.\n");
 		return false;
 	}
 	return true;
 }
-bool handle_delete_current(init::arg_list_t *al) {
+bool handle_delete_current(arg_list_t *al) {
 	assert(al->ct == 0);
-	tags_t p_criteria = encode_tag(db::Tag::CURRENT);
-	tags_t n_criteria = encode_tag(db::Tag::FAVOURITE);	// Do not delete current if it's a favourite.
-	db::rows_t rows;
-	bool ret = db::del_entry_by_tag(&rows, data_file_path, &p_criteria, &n_criteria);
+	tags_t p_criteria = encode_tag(TAG_CURRENT);
+	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
+	rows_t rows;
+	bool ret = del_entry_by_tag(&rows, data_file_path, &p_criteria, &n_criteria);
 	if (rows.ct > 0) {
 		printf("Entries deleted from database: %lu\nDeleting files...\n", rows.ct);
 		for (num_rows i = 0; i < rows.ct; i++) {	// Delete the files.
 			if (unlink(rows.row[i]->file)) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
 		}
 		printf("Changing the current wallpaper...\n");
-		handle_set_new(nullptr);
+		handle_set_new(NULL);
 		return true;
 	} else {
 		if (ret) fprintf(stderr, "Nothing was deleted. Is the current wallpaper a favourite?\n");
@@ -522,7 +525,7 @@ bool handle_delete_current(init::arg_list_t *al) {
 	return false;
 }
 
-/*bool handle_sanity_check(init::param_arg_ct argcnt, init::argument *arg) {
+/*bool handle_sanity_check(param_arg_ct argcnt, argument *arg) {
 	// Report and abort in case of pre-existing temp file.
 	// Create temp file.
 	// Copy sane entries to the temp file.
@@ -536,20 +539,18 @@ bool handle_delete_current(init::arg_list_t *al) {
 	// get_tag_mask() checks for duplicate tags on a single entry.
 	
 	did_something = true;
-	return db::sanity_check(data_file_path);
+	return sanity_check(data_file_path);
 }*/
-bool handle_print(init::arg_list_t *al) {
+bool handle_print(arg_list_t *al) {
 	assert(al->ct == 0);
 	if (verbosity == 0) return false;
 
-	db::row_t *current = db::get_current(data_file_path);
-	if (current == nullptr) {
-		//std::cerr << "Error getting current wallpaper." << std::endl;
+	row_t *current = get_current(data_file_path);
+	if (current == NULL) {
 		fprintf(stderr, "Error getting current wallpaper.\n");
 		return false;
 	}
 
-	//std::cout << "Current wallpaper: \"" << current->file << '"' << std::endl;
 	printf("Current wallpaper: \"%s\"\n", current->file);
 
 	//image_t img = {.file = current->file};
@@ -557,16 +558,11 @@ bool handle_print(init::arg_list_t *al) {
 	//if (! get_image_size(&img)) {
 	image_t *img;
 	if (! (img = get_image_size(current->file))) {
-		//std::cerr << "Error scanning image file." << std::endl;
 		fprintf(stderr, "Error scanning image file.\n");
 		free_row(current);
 		return false;
 	}
 	free_row(current);
-	/*std::cout
-		<< "\tWidth: " << img.width
-		<< "\n\tHeight: " << img.height
-	<< std::endl;*/
 	printf("\tWidth: %u\n\tHeight: %u\n", img->width, img->height);
 
 	free(img);
@@ -578,7 +574,7 @@ bool handle_print(init::arg_list_t *al) {
  * Below are for initialising runtime parameters.
 /*/
 
-bool handle_database_path(init::arg_list_t *al) {
+bool handle_database_path(arg_list_t *al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
@@ -596,7 +592,7 @@ bool handle_database_path(init::arg_list_t *al) {
 	if (verbosity > 1) printf("Using database path: \"%s\"\n", data_file_path);
 	return true;
 }
-bool handle_wallpaper_path(init::arg_list_t *al) {
+bool handle_wallpaper_path(arg_list_t *al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
@@ -614,13 +610,13 @@ bool handle_wallpaper_path(init::arg_list_t *al) {
 	if (verbosity > 1) printf("Using specified wallpaper path: \"%s\"\n", wallpaper_path);
 	return true;
 }
-bool handle_follow_symlinks_beyond_specified_directory(init::arg_list_t *al) {
-	assert(al == nullptr);
+bool handle_follow_symlinks_beyond_specified_directory(arg_list_t *al) {
+	assert(al == NULL);
 	follow_symlinks_beyond_specified_directory = true;
 	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n", wallpaper_path);
 	return true;
 }
-/*bool handle_verbosity(init::param_arg_ct argcnt, init::argument *arg) {
+/*bool handle_verbosity(param_arg_ct argcnt, argument *arg) {
 	if (argcnt != 1) {
 		std::cerr << "Function handle_wallpaper_path expects exactly one argument. Aborting." << std::endl;
 		return false;
@@ -637,9 +633,9 @@ int main(int argc, char** argv) {
 	atexit(clean_up);
 
 	// Note: init functions do not currently have access to data_file_path.
-	if (! init::init(argc, argv)) return 1;	// Parse C.L.I. and config file(s).
+	if (! init(argc, argv)) return 1;	// Parse C.L.I. and config file(s).
 
-	if (init::run_mode_params.ct == 0) {	// Has the user specified something to do?
+	if (run_mode_params.ct == 0) {	// Has the user specified something to do?
 		fprintf(stderr, "No action specified.\n");
 		clean_up();
 		return 1;
@@ -647,7 +643,7 @@ int main(int argc, char** argv) {
 
 
 	if (!data_file_path) {	// Fall back on default database path.
-		if (!data_directory) data_directory = xdg::data::home();	// Currently always true.
+		if (!data_directory) data_directory = get_xdg_data_home();	// Currently always true.
 		//size_t len = data_directory ? strlen(data_directory) : 0;
 		size_t len;
 		if (!data_directory || (len = strlen(data_directory)) == 0) {
@@ -676,8 +672,8 @@ int main(int argc, char** argv) {
 
 
 	bool status = true;
-	for (init::param_ct i = 0; i < init::run_mode_params.ct; i++) {	// Execute requested functions.
-		const init::handler_set_t *hs = init::run_mode_params.hs[i];
+	for (param_ct i = 0; i < run_mode_params.ct; i++) {	// Execute requested functions.
+		const handler_set_t *hs = run_mode_params.hs[i];
 		if (! (status = hs->fn(hs->arg_list))) break;	// Break on error (status=false).
 	}
 

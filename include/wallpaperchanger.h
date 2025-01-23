@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stddef.h>	// For size_t.
 #include "libxdgbasedir.h"
 #include "util.h"
 
@@ -7,20 +9,23 @@
 #define DEFAULT_WALLPAPER_DIR_NAME "wallpapers"
 
 
-static file_path_t data_directory = nullptr;
+static file_path_t data_directory = NULL;
 
 static file_path_t
-	data_file_path = nullptr,	// Path to database.
-	wallpaper_path = nullptr	// Wallpaper to operate on.
+	data_file_path = NULL,	// Path to database.
+	wallpaper_path = NULL	// Wallpaper to operate on.
 ;
-static size_t s_wallpapers_ct = 0;
-static file_path_t *s_wallpapers = nullptr;	// Cache used by some functions.
 
+// Cache used by some functions:
+static size_t s_wallpapers_ct = 0;
+static file_path_t *s_wallpapers = NULL;
+
+// Used for tracking directory depth while walking filesystem:
 bool follow_symlinks_beyond_specified_directory = false;
 static int s_directory_depth_remaining = MAX_DIRECTORY_DEPTH;
 
 
 /* Misc. intermediary functions: */
 
-bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags = 0);
+bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags);
 

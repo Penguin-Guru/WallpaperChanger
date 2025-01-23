@@ -1,11 +1,10 @@
 //#include <fstream>	// ?
 #include <string.h>	// ?
+#include <stdlib.h>	// For malloc and free.
+#include <stdio.h>	// For printf.
 #include <FreeImage.h>
 #include "image.h"
-
-//#ifdef INCLUDE_VERBOSITY
 #include "verbosity.h"
-//#endif
 
 
 
@@ -26,17 +25,20 @@ static void FreeImageErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) {
 
 image_t* get_image_size(const char *wallpaper_file_path) {
 	if (!(wallpaper_file_path && *wallpaper_file_path)) {
-		return nullptr;
+		return NULL;
 	}
 
-	FreeImage_Initialise();
+	/*FreeImage_Initialise();*/
+	FreeImage_Initialise(false);
 	FreeImage_SetOutputMessage(FreeImageErrorHandler);
-	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path);
+	//FreeImage_SetOutputMessage(FreeImageErrorHandler, 0);
+	//FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path);
+	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
 	if (!bitmap) {
 		fprintf(stderr, "Failed to load file as image.\n");
 		FreeImage_DeInitialise();
-		return nullptr;
+		return NULL;
 	}
 
 	image_t *img = (image_t*)malloc(sizeof(image_t));
@@ -57,20 +59,22 @@ image_t* get_pixel_data(
 ) {
 	// https://git.sr.ht/~exec64/imv/tree/master/item/src/backend_freeimage.c#L60
 	// https://git.sr.ht/~exec64/imv/tree/master/item/src/canvas.c#L269
-	FreeImage_Initialise();
+	/*FreeImage_Initialise();*/
+	FreeImage_Initialise(false);
 	FreeImage_SetOutputMessage(FreeImageErrorHandler);
-	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path);
+	//FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path);
+	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
 	if (!bitmap) {
 		fprintf(stderr, "Failed to load file as image.\n");
 		FreeImage_DeInitialise();
-		return nullptr;
+		return NULL;
 	}
 	if (!FreeImage_HasPixels(bitmap)) {
 		fprintf(stderr, "Image does not appear to contain pixel data.\n");
 		FreeImage_Unload(bitmap);
 		FreeImage_DeInitialise();
-		return nullptr;
+		return NULL;
 	}
 	FIBITMAP *prev_bitmap;
 	prev_bitmap = bitmap;
@@ -105,13 +109,14 @@ image_t* get_pixel_data(
 				fprintf(stderr, "Unsupported root screen depth.\n");
 				FreeImage_Unload(bitmap);
 				FreeImage_DeInitialise();
-				return nullptr;
+				return NULL;
 		}
 	}
 	if (FreeImage_GetImageType(bitmap) != FIT_BITMAP) {
 		if (verbosity > 0) printf("Converting to standard bitmap type.\n");
 		prev_bitmap = bitmap;
-		bitmap = FreeImage_ConvertToStandardType(bitmap);
+		/*bitmap = FreeImage_ConvertToStandardType(bitmap);*/
+		bitmap = FreeImage_ConvertToStandardType(bitmap, true);
 		FreeImage_Unload(prev_bitmap);
 	}
 	img_x = FreeImage_GetWidth(bitmap);
@@ -143,7 +148,7 @@ image_t* get_pixel_data(
 		);
 		FreeImage_Unload(bitmap);
 		FreeImage_DeInitialise();
-		return nullptr;
+		return NULL;
 	}
 	// See FreeImage_ConvertTo...
 	// FIF_XPM
@@ -243,7 +248,7 @@ image_t* get_pixel_data(
 		free(img);
 		FreeImage_Unload(bitmap);
 		FreeImage_DeInitialise();
-		return nullptr;
+		return NULL;
 	}
 	//
 	/*// https://stackoverflow.com/questions/5249644/cairo-load-image-from-data

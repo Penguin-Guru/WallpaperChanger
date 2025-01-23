@@ -2,17 +2,24 @@
 
 #include <stdint.h>
 
-using BYTE = uint8_t;
+typedef uint8_t BYTE;
 
 typedef struct {
 	const char *file;
-	unsigned int width = 0;
-	unsigned int height = 0;
-	unsigned int bytes_per_row = 0, scan_width = 0;	// Redundant. Fix later.
+	unsigned int width;
+	unsigned int height;
+	unsigned int bytes_per_row, scan_width;	// Redundant. Fix later.
 
-	size_t data_len = 0;
-	BYTE *pixels = nullptr;
+	size_t data_len;
+	BYTE *pixels;
 } image_t;
+
+
+/*typedef struct {
+	unsigned depth = 0;
+	unsigned width = 0;
+	unsigned height = 0;
+} screen_params;*/
 
 
 image_t* get_image_size(const char *wallpaper_file_path);
