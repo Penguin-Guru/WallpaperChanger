@@ -6,7 +6,7 @@
 
 uint_fast8_t verbosity = 1;
 
-bool handle_verbosity(arg_list_t *al) {
+bool handle_verbosity(const arg_list_t * const al) {
 	assert(al != NULL);
 	assert(al->ct == 1);
 	assert(al->args);

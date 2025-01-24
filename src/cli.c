@@ -2,6 +2,7 @@
 #include <stdlib.h>	// For malloc.
 #include <string.h>
 #include <assert.h>
+//#include "parameter.h"
 #include "cli.h"
 #include "init.h"
 #include "argument.h"
@@ -11,19 +12,31 @@ static inline void print_invalid(const char* const term) {
 	fprintf(stderr, "Invalid parameter: %s\n", term);
 }
 
-static inline void print_arg_mismatch(param_name name , const param_arg_ct expected, const param_arg_ct provided) {
-	fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
-			"\tTerms expected: \"%hu\"\n"
-			"\tTerms provided: \"%hu\"\n"
-		,
-		name,
-		expected,
-		provided
-	);
+static inline void print_arg_mismatch(param_name name, const param_arg_parameters_t arg_params, const param_arg_ct provided) {
+	if (arg_params.min == arg_params.max) {
+		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
+				"\tTerms expected: \"%hu\"\n"
+				"\tTerms provided: \"%hu\"\n"
+			,
+			name,
+			arg_params.min,
+			provided
+		);
+	} else {
+		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
+				"\tTerms expected: \"%hu -- %hu\"\n"
+				"\tTerms provided: \"%hu\"\n"
+			,
+			name,
+			arg_params.min,
+			arg_params.max,
+			provided
+		);
+	}
 }
 
 
-const parameter_t *param_buff = NULL;
+parameter_t *param_buff = NULL;
 // Using the heap like this feel very inefficient, but I'm not sure of a better way to avoid arbitrary length limits.
 arg_list_t args_buff = {};	// Heap currently realloc'd to accommodate each new argument per parameter.
 
@@ -32,7 +45,7 @@ static inline bool push_param_buff() {	// For parameters with arguments.
 	reset_args_buffer(&args_buff);
 	return ret;
 }
-static inline bool push_param_unbuff(const parameter_t *param) {	// For parameters without arguments.
+static inline bool push_param_unbuff(parameter_t *param) {	// For parameters without arguments.
 	if (param == NULL) param = param_buff;
 	bool ret = register_param(param, NULL);
 	if (args_buff.ct) {
@@ -45,13 +58,13 @@ static inline bool push_param_unbuff(const parameter_t *param) {	// For paramete
 
 static bool match_short_param(short_flag_t arg) {
 	for (param_ct i = 0; i < num_params_known; i++) {	// Support multi-character short flags-- for now.
-		const parameter_t *check_param = &params_known[i];
+		parameter_t * const check_param = &params_known[i];
 		if (
 			check_param->flag_pair.short_flag != NULL
 			&& !strcmp(check_param->flag_pair.short_flag, arg)
 		) {
 			// Matched parameter.
-			if ((terms_pending = check_param->handler_set.arg_list->ct) == 0) {
+			if ((terms_pending = check_param->arg_params.max) == 0) {
 				// No need for push_param_buff, because there should be no arguments.
 				return push_param_unbuff(check_param);
 			}
@@ -69,13 +82,13 @@ static bool match_short_param(short_flag_t arg) {
 }
 static bool match_long_param(long_flag_t arg) {
 	for (param_ct i = 0; i < num_params_known; i++) {
-		const parameter_t *check_param = &params_known[i];
+		parameter_t * const check_param = &params_known[i];
 		if (
 			check_param->flag_pair.long_flag != NULL
 			&& !strcmp(check_param->flag_pair.long_flag, arg)
 		) {
 			// Matched parameter.
-			if ((terms_pending = check_param->handler_set.arg_list->ct) == 0) {
+			if ((terms_pending = check_param->arg_params.max) == 0) {
 				// No need for push_param_buff, because there should be no arguments.
 				return push_param_unbuff(check_param);
 			}
@@ -135,7 +148,7 @@ bool parse_params(int argc, char** argv) {
 			// A flag was not expected.
 			print_arg_mismatch(
 				param_buff->handler_set.name,
-				param_buff->handler_set.arg_list->ct,
+				param_buff->arg_params,
 				args_buff.ct
 			);
 			free_args(&args_buff);
@@ -165,7 +178,7 @@ bool parse_params(int argc, char** argv) {
 		// A flag was not expected.
 		print_arg_mismatch(
 			param_buff->handler_set.name,
-			param_buff->handler_set.arg_list->ct,
+			param_buff->arg_params,
 			args_buff.ct
 		);
 		free_args(&args_buff);

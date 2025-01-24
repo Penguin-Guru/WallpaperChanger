@@ -34,7 +34,7 @@
 
 typedef const char * param_name ;
 typedef const char * param_description;
-typedef bool(*param_handler_t)(arg_list_t *al);
+typedef bool(*param_handler_t)(const arg_list_t * const al);
 typedef struct {
 	const param_name name;
 		// Name is stored here to allow for verbose debug messages from handler.
@@ -61,14 +61,19 @@ enum ParamType {
 };
 
 typedef struct {
+	const param_arg_ct min, max;
+} param_arg_parameters_t;	// Name is odd. Consider alternatives.
+
+typedef struct {
 	handler_set_t handler_set;
-	flag_pair_t flag_pair;
+	const flag_pair_t flag_pair;
+	const param_arg_parameters_t arg_params;
 	enum ParamType type;
 } parameter_t;	// Parameter definition. param_def_t
 
 typedef uint_fast8_t param_ct;	// Limits the number of parameters the application may accept.
 typedef struct {
-	const handler_set_t **hs;	// Heap.
+	handler_set_t **hs;	// Heap.
 	// Is that double pointer necessary?
 	param_ct ct;
 } handler_set_list_t;

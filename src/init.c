@@ -8,20 +8,21 @@
 
 handler_set_list_t run_mode_params;
 
-bool handle_config_file(arg_list_t *al) {
+bool handle_config_file(const arg_list_t * const al) {
 	assert(al != NULL);
 	assert(al->ct > 0);
 	assert(al->args[0] != NULL);
 	assert(al->args[al->ct-1] != NULL);
-	while (al->ct-- > 0) {
-		// Note: al->ct now points to the file index, not one ahead.
-		if (parse_file(al->args[al->ct])) num_config_files_loaded++;
+	param_arg_ct remaining = al->ct;
+	while (remaining-- > 0) {
+		// Note: "remaining" now points to the file index, not one ahead.
+		if (parse_file(al->args[remaining])) num_config_files_loaded++;
 		else return false;
 	}
 	return true;
 }
 
-bool handle_print_help(arg_list_t *al) {	// Bool return only due to handler function pointer type.
+bool handle_print_help(const arg_list_t * const al) {	// Bool return only due to handler function pointer type.
 	assert(al == NULL);
 	printf("Parameters:\n");
 	for (param_ct i = 0; i < num_params_known; i++) {
@@ -31,7 +32,13 @@ bool handle_print_help(arg_list_t *al) {	// Bool return only due to handler func
 		if (param->handler_set.description != NULL)
 			printf("\t\tDescription: %s\n", param->handler_set.description);
 
-		printf("\t\tArguments expected: %hd\n", param->handler_set.arg_list->ct);
+		if (param->arg_params.min == param->arg_params.max)
+			printf("\t\tArguments expected: %hd\n", param->arg_params.min);
+		else
+			printf("\t\tArguments expected: %hd -- %hd\n",
+				param->arg_params.min,
+				param->arg_params.max
+			);
 
 		const flag_pair_t *flags = &param->flag_pair;
 		if (flags->long_flag != NULL)
@@ -49,8 +56,15 @@ void free_params(handler_set_list_t *list) {
 	}
 	free(list->hs);
 }
-bool register_param(const parameter_t *p, arg_list_t *al) {
-	assert(al == NULL || al->ct > 0);
+bool register_param(parameter_t *p, const arg_list_t * const al) {
+	assert(al == NULL || al->ct > 0);	// Don't store empty containers.
+	assert(!(al == NULL && p->arg_params.min != 0));
+	assert(
+		al == NULL
+		|| ((p->arg_params.min <= al->ct) && (al->ct <= p->arg_params.max))
+	);
+
+	// Each type is stored in a separate handler_set_list_t.
 	handler_set_list_t *list = NULL;	// Not useful at the moment, but may be in the future.
 	switch (p->type) {
 		case RUN :
@@ -68,13 +82,24 @@ bool register_param(const parameter_t *p, arg_list_t *al) {
 			return false;
 	}
 
-	if (! (list->hs = (const handler_set_t**)reallocarray(list->hs, list->ct + 1, sizeof(handler_set_t*)))) {
+	// Resize list to accommodate the new handler_set:
+	if (! (list->hs = (handler_set_t**)reallocarray(list->hs, list->ct + 1, sizeof(handler_set_t*)))) {
 		fprintf(stderr, "Falied to allocate memory on heap!\n");
-		free_args(al);
 		return false;
 	}
 
-	//p->handler_set.arg_list = al;
+	// Allocate space on heap to store contents of the provided arg_list buffer.
+	if (al) {
+		//p->handler_set.arg_list = al;
+		if (! (p->handler_set.arg_list = malloc(sizeof(al)))) {
+			fprintf(stderr, "Failed to allocate memory on heap!\n");
+			return false;
+		}
+		p->handler_set.arg_list->ct = al->ct;
+		p->handler_set.arg_list->args = al->args;
+	}
+
+	// Load the handler_set into the list:
 	list->hs[list->ct++] = &p->handler_set;
 
 	return true;

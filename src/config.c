@@ -15,7 +15,7 @@ bool parse_line(char *line) {
 		strlcpy(label, line, op - line);
 
 		// Identify the operation/parameter (label).
-		const parameter_t *param = NULL;
+		parameter_t *param = NULL;
 		for (param_ct i = 0; i < num_params_known; i++) {
 			if (!strcmp(label, params_known[i].flag_pair.long_flag)) {
 				param = &params_known[i];
@@ -25,7 +25,8 @@ bool parse_line(char *line) {
 		if (!param) return false;
 
 		// Now we know how many terms/arguments the operation/parameter expects.
-		param_arg_ct etc = param->handler_set.arg_list->ct;
+		//param_arg_ct etc = param->handler_set.arg_list->ct;
+		param_arg_ct etc = param->arg_params.max;
 		argument args[etc] = {};
 
 		// Parse the terms/arguments.
@@ -39,7 +40,8 @@ bool parse_line(char *line) {
 		) {
 			args[arg_ct++] = buff;
 		}
-		if (arg_ct != etc) {
+		//if (arg_ct != etc) {
+		if (arg_ct < param->arg_params.min || arg_ct > etc) {
 			fprintf(stderr,
 				"Config: Invalid number of arguments for parameter \"%s\" (\"%s\").\n"
 					"\tFound: %hu\n"

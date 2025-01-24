@@ -323,7 +323,7 @@ int handle_inode(
 
 /* Parameter handlers: */
 
-bool handle_set(arg_list_t *al) {	// It would be nice if this weren't necessary.
+bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren't necessary.
 	//return set_new_current((const file_path_t)arg[0]);
 	assert(al->ct == 1);
 	assert(al->args[0]);
@@ -355,7 +355,7 @@ bool handle_set_new(param_arg_ct argcnt, argument *arg) {
 	}
 	return ret;
 }*/
-bool handle_set_new(arg_list_t *al) {
+bool handle_set_new(const arg_list_t * const al) {
 	assert(al->ct == 0);
 	//int result;
 
@@ -437,7 +437,7 @@ bool handle_set_new(arg_list_t *al) {
 	}
 	return false;
 }*/
-bool handle_set_fav(arg_list_t *al) {
+bool handle_set_fav(const arg_list_t * const al) {
 	assert(al->ct == 0);
 	// Choose a favourite file.
 	// 	set_wallpaper "$(grep -E '[Ff]avourite\s*$' < "$LogFile" | cut -d\  -f2 | sort -Ru | head -1)"
@@ -494,7 +494,7 @@ bool handle_set_next(param_arg_ct argcnt, argument *arg) {
 	return true;
 }*/
 
-bool handle_fav_current(arg_list_t *al) {
+bool handle_fav_current(const arg_list_t * const al) {
 	assert(al->ct == 0);
 	tags_t criteria = encode_tag(TAG_CURRENT);
 	tags_t tags_to_add = encode_tag(TAG_FAVOURITE);
@@ -504,7 +504,7 @@ bool handle_fav_current(arg_list_t *al) {
 	}
 	return true;
 }
-bool handle_delete_current(arg_list_t *al) {
+bool handle_delete_current(const arg_list_t * const al) {
 	assert(al->ct == 0);
 	tags_t p_criteria = encode_tag(TAG_CURRENT);
 	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
@@ -541,8 +541,8 @@ bool handle_delete_current(arg_list_t *al) {
 	did_something = true;
 	return sanity_check(data_file_path);
 }*/
-bool handle_print(arg_list_t *al) {
-	assert(al->ct == 0);
+bool handle_print(const arg_list_t * const al) {
+	assert(al == 0);
 	if (verbosity == 0) return false;
 
 	row_t *current = get_current(data_file_path);
@@ -574,7 +574,7 @@ bool handle_print(arg_list_t *al) {
  * Below are for initialising runtime parameters.
 /*/
 
-bool handle_database_path(arg_list_t *al) {
+bool handle_database_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
@@ -592,7 +592,7 @@ bool handle_database_path(arg_list_t *al) {
 	if (verbosity > 1) printf("Using database path: \"%s\"\n", data_file_path);
 	return true;
 }
-bool handle_wallpaper_path(arg_list_t *al) {
+bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
@@ -610,7 +610,7 @@ bool handle_wallpaper_path(arg_list_t *al) {
 	if (verbosity > 1) printf("Using specified wallpaper path: \"%s\"\n", wallpaper_path);
 	return true;
 }
-bool handle_follow_symlinks_beyond_specified_directory(arg_list_t *al) {
+bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const al) {
 	assert(al == NULL);
 	follow_symlinks_beyond_specified_directory = true;
 	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n", wallpaper_path);
@@ -637,7 +637,6 @@ int main(int argc, char** argv) {
 
 	if (run_mode_params.ct == 0) {	// Has the user specified something to do?
 		fprintf(stderr, "No action specified.\n");
-		clean_up();
 		return 1;
 	}
 
