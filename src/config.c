@@ -5,17 +5,12 @@
 #include <stdio.h>	// For fprintf.
 #include "config.h"
 #include "init.h"
-
-//#ifdef INCLUDE_VERBOSITY
 #include "verbosity.h"
-//#endif
 
 
 bool parse_line(char *line) {
-//bool parse_line(char *line) {
 	char *op;
 	if (op = strpbrk(line, "=:")) {	// Move these later.
-		//char label[] = strlcpy(label, line, op - line);
 		char label[op - line];
 		strlcpy(label, line, op - line);
 
@@ -31,9 +26,6 @@ bool parse_line(char *line) {
 
 		// Now we know how many terms/arguments the operation/parameter expects.
 		param_arg_ct etc = param->handler_set.arg_list->ct;
-		//argument args[etc] = {0};
-		//char* args[etc] = {0};
-		//argument args[etc] = {0};
 		argument args[etc] = {};
 
 		// Parse the terms/arguments.
@@ -45,7 +37,6 @@ bool parse_line(char *line) {
 			;buff != NULL && arg_ct <= etc;
 			buff = strtok_r(NULL, Arg_Delims, &saveptr)
 		) {
-			//strcpy(args[arg_ct++], buff);
 			args[arg_ct++] = buff;
 		}
 		if (arg_ct != etc) {
@@ -62,18 +53,6 @@ bool parse_line(char *line) {
 		}
 
 		// Register the operation/parameter for execution.
-		/*switch (param->type) {
-			case ParamType::RUN :
-				run_mode_params.push_back(param_execution_pair{&param->handler_set, args});
-				break;
-			case ParamType::INIT :
-				init_type_params.push_back(param_execution_pair{&param->handler_set, args});
-				break;
-			default:
-				fprintf(stderr, "Invalid parameter type for \"%s\".\n", param->flag_pair.long_flag);
-				return false;
-		}*/
-		//return register_param(param, arg_ct, args);
 		arg_list_t al = {
 			.ct=arg_ct,
 			.args=args
@@ -132,6 +111,5 @@ bool parse_file(const file_path_t file_path) {
 	free(line);
 
 	fclose(f);
-	//num_config_files_loaded++;
 	return true;
 }

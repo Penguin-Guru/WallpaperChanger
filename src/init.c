@@ -21,7 +21,7 @@ bool handle_config_file(arg_list_t *al) {
 	return true;
 }
 
-bool handle_print_help(arg_list_t *al) {
+bool handle_print_help(arg_list_t *al) {	// Bool return only due to handler function pointer type.
 	assert(al == NULL);
 	printf("Parameters:\n");
 	for (param_ct i = 0; i < num_params_known; i++) {
@@ -40,7 +40,6 @@ bool handle_print_help(arg_list_t *al) {
 			printf("\t\tShort flag: -%s\n", flags->short_flag);
 	}
 	printf("\n");
-	//return true;
 	exit(0);
 }
 
@@ -52,7 +51,7 @@ void free_params(handler_set_list_t *list) {
 }
 bool register_param(const parameter_t *p, arg_list_t *al) {
 	assert(al == NULL || al->ct > 0);
-	handler_set_list_t *list = NULL;
+	handler_set_list_t *list = NULL;	// Not useful at the moment, but may be in the future.
 	switch (p->type) {
 		case RUN :
 			list = &run_mode_params;
@@ -74,6 +73,8 @@ bool register_param(const parameter_t *p, arg_list_t *al) {
 		free_args(al);
 		return false;
 	}
+
+	//p->handler_set.arg_list = al;
 	list->hs[list->ct++] = &p->handler_set;
 
 	return true;
@@ -84,7 +85,6 @@ static void clean_up_init() {
 }
 
 static inline const char* load_default_config_file() {
-//inline const char* load_default_config_file(const char* abort_msg) {
 	char *config_dir = get_xdg_config_home();
 	if (!config_dir) {
 		/*fprintf(stderr, "Init: Failed to identify config directory.\n");
@@ -92,32 +92,32 @@ static inline const char* load_default_config_file() {
 		return "Failed to identify config directory.";
 	}
 	const char *config_file_name = "/" DEFAULT_CONFIG_FILE_NAME;
-	//char *pos;
 	size_t name_len = strlen(config_file_name);
 	size_t dir_len = config_dir == NULL ? 0 : strlen(config_dir);;
 	if (dir_len == 0) {
 		/*fprintf(stderr, "Init: Default config directory path is empty.\n");
 		free(config_dir);
 		return false;*/
+		free(config_dir);
 		return "Default config directory path is empty.";
 	}
 	char config_path[dir_len + name_len + 1];
 	// That +1 may or may not be necessary.
 	// For some reason, the terminating null seems to be counted in name_len. Something about synthetic pointers.
+
 	//stpcpy(config_path, config_dir);
-	//strncat(config_path, 
+	//strncat(config_path, config_file_name, name_len);
+	//
 	//pos = (char*)mempcpy(config_path, config_dir, dir_len);
 	mempcpy(config_path, config_dir, dir_len);
 	free(config_dir);
-
+	//
 	//*pos++ = '/';
 	/*pos = (char*)mempcpy(pos, config_file_name, name_len);
 	*pos = '\0';*/
-	//*((char*)mempcpy(pos, config_file_name, name_len)) = '\0';
 	mempcpy(config_path + dir_len, config_file_name, name_len);
 	config_path[dir_len + name_len] = '\0';
-	//parse_file(config_path);
-	//char *this_is_stupid = &config_path[0];
+
 	file_path_t silly = config_path;
 	arg_list_t this_is_stupid = {1, &silly};
 	handle_config_file(&this_is_stupid);
@@ -127,7 +127,6 @@ static inline const char* load_default_config_file() {
 }
 
 bool init(int argc, char** argv) {
-//int_fast8_t init(int argc, char** argv) {
 	atexit(clean_up_init);
 	//bool proceed = true;
 	const char *abort_msg = NULL;
@@ -137,9 +136,6 @@ bool init(int argc, char** argv) {
 		//proceed = false;
 		abort_msg = "Failed to parse command-line parameters.";
 	}
-
-	//if (proceed && quit_after_parsing_cli) {
-	//if (!abort_msg && quit_after_parsing_cli) {
 
 	// Note:
 	// 	Config files must be handled before the handler loop (below).

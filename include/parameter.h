@@ -61,7 +61,7 @@ enum ParamType {
 };
 
 typedef struct {
-	const handler_set_t handler_set;
+	handler_set_t handler_set;
 	flag_pair_t flag_pair;
 	enum ParamType type;
 } parameter_t;	// Parameter definition. param_def_t

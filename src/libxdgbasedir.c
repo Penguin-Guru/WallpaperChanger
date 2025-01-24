@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-//#include <stdexcept>
 #include "libxdgbasedir.h"
 
 static bool is_absolute_path(const char* path);
@@ -41,9 +40,7 @@ static char* get_env(const char *name, char *default_value) {
 
 char* get_xdg_config_home() {
 	char *path = get_env(XDG_CONFIG_HOME, NULL);
-	//if (!(path || is_absolute_path(path))) {
 	if (!path || !is_absolute_path(path)) {
-		//path = get_env(HOME) + XDG_CONFIG_HOME_SUFFIX;
 		char *home = get_env(HOME, NULL);
 		if (!home) {
 			free(path);
@@ -68,9 +65,7 @@ char* get_xdg_config_home() {
 
 char* get_xdg_data_home() {
 	char *path = get_env(XDG_DATA_HOME, NULL);
-	//if (!(path || is_absolute_path(path))) {
 	if (!path || !is_absolute_path(path)) {
-		//path = get_env(HOME) + XDG_DATA_HOME_SUFFIX;
 		char *home = get_env(HOME, NULL);
 		if (!home) {
 			free(path);

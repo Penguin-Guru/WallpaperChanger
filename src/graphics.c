@@ -872,10 +872,7 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 }
 
 
-//bool set_wallpaper(const char *wallpaper_file_path) {
-//bool set_wallpaper(char *wallpaper_file_path) {
 bool set_wallpaper(const file_path_t wallpaper_file_path) {
-	//if (verbosity > 1) printf("wallpaper_file_path: \"%s\"\n", wallpaper_file_path);
 	if (!wallpaper_file_path || *wallpaper_file_path == '\0') return false;
 	if (!init_xcb()) return false;
 
