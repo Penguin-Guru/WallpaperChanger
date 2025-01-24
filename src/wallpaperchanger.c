@@ -220,8 +220,8 @@ bool is_path_within_path(const file_path_t a, const file_path_t b) {
 	if (start_of_subpath - a > 0) return false;
 	return true;
 }
-int handle_inode(
-//FTW_ACTIONRETVAL handle_inode(
+int process_inode(
+//FTW_ACTIONRETVAL process_inode(
 	const char *filepath,
 	const struct stat *info,
 	const int typeflag,
@@ -286,7 +286,7 @@ int handle_inode(
 						fprintf(stderr, "Reached maximum directory depth. Skipping directory: \"%s\"\n", target);
 						break;	// Continue search.
 					}
-					ret = nftw(target, handle_inode, --s_directory_depth_remaining, FTW_PHYS);
+					ret = nftw(target, process_inode, --s_directory_depth_remaining, FTW_PHYS);
 					s_directory_depth_remaining++;	// This is ugly.
 					assert(0 <= s_directory_depth_remaining <= MAX_DIRECTORY_DEPTH);
 					break;
@@ -330,34 +330,8 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 	return set_new_current(al->args[0], 0);
 	//return did_something = true;
 }
-/*
-// This implementation looks for database entried with the "new" tag.
-// It's commented out because I don't need it and get_row_if_match() would need to support missing timestamp fields.
-bool handle_set_new(param_arg_ct argcnt, argument *arg) {
-	bool ret;
-	// Choose a recent file.
-	// 	Prefer wallpapers not previously viewed.
-	// 	Prefer newer wallpapers.
-	// 		Consider adding a tag, "new", for wallpapers that have never been set.
-	// 		Avoid looping only the most recent wallpapers.
-	tags_t p_criteria = encode_tag(TAG_NEW);
-	tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
-	rows *options = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
-	if (options == nullptr) {
-		fprintf(stderr, "get_rows_by_tag() returned nullptr. Is this ok?\n");
-		ret = false;
-	} else {
-		if (options->ct) {
-			// TODO: make set_new_current remove the "new" tag from the initial entry. Perhaps simply replace it with "current".
-			ret = set_new_current(options->row[0]->file, options->row[0]->tags);
-		}
-		free_rows(options);
-	}
-	return ret;
-}*/
 bool handle_set_new(const arg_list_t * const al) {
 	assert(al->ct == 0);
-	//int result;
 
 	// Invalid directory path?
 	//if (dirpath == NULL || *dirpath == '\0') return errno = EINVAL;
@@ -393,8 +367,8 @@ bool handle_set_new(const arg_list_t * const al) {
 	}
 
 	s_directory_depth_remaining = MAX_DIRECTORY_DEPTH;
-	switch (nftw(wallpaper_path, handle_inode, MAX_DIRECTORY_DEPTH, FTW_PHYS)) {
-	//switch (nftw(wallpaper_path, handle_inode, MAX_DIRECTORY_DEPTH, FTW_PHYS | FTW_ACTIONRETVAL)) {
+	switch (nftw(wallpaper_path, process_inode, MAX_DIRECTORY_DEPTH, FTW_PHYS)) {
+	//switch (nftw(wallpaper_path, process_inode, MAX_DIRECTORY_DEPTH, FTW_PHYS | FTW_ACTIONRETVAL)) {
 		case 1:
 			// Wallpaper should have been set successfully.
 			return true;
@@ -616,16 +590,6 @@ bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const 
 	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n", wallpaper_path);
 	return true;
 }
-/*bool handle_verbosity(param_arg_ct argcnt, argument *arg) {
-	if (argcnt != 1) {
-		std::cerr << "Function handle_wallpaper_path expects exactly one argument. Aborting." << std::endl;
-		return false;
-	}
-	// Could assign to an unsigned long for comparison against USHRT_MAX.
-	verbosity = (unsigned short)strtoul(arg[0].c_str(), NULL, 0);
-	if (verbosity >= 2) printf("Set verbosity: %hu\n", verbosity);
-	return true;
-}*/
 
 /* Main: */
 
@@ -656,17 +620,6 @@ int main(int argc, char** argv) {
 		data_file_path = (file_path_t)malloc(len+1);
 		snprintf(data_file_path, len, "%s%s\0", data_directory, "/" DEFAULT_DATA_FILE_NAME);
 		//free(data_directory);
-		/*if (len) {
-			len += 1+sizeof(DEFAULT_DATA_FILE_NAME);	// +1 for '/'.
-			data_file_path = malloc(len);
-			snprintf(data_file_path, len, "%s%s\0", data_directory.c_str(), '/' DEFAULT_DATA_FILE_NAME);
-		} else {	// This shouldn't happen.
-			fprintf(stderr, "Warning: failed to get X.D.G. data_directory.\n");
-			// Default to default name in working directory?
-			len = sizeof(DEFAULT_DATA_FILE_NAME);
-			data_file_path= malloc(len);
-			strncpy(data_file_path, DEFAULT_DATA_FILE_NAME, len);
-		}*/
 	}
 
 
