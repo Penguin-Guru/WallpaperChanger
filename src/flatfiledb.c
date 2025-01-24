@@ -95,6 +95,7 @@ tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 
 row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
 	static_assert(sizeof(Column_Delims-1) > 0, "No column delimiters have been hard-coded.");
+	assert(row_num && row_string);
 	assert(!(n_criteria && p_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 
 	int row_string_length = strnlen(row_string, MAX_ROW_LENGTH);

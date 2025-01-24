@@ -90,7 +90,7 @@ bool register_param(parameter_t *p, const arg_list_t * const al) {
 
 	// Allocate space on heap to store contents of the provided arg_list buffer.
 	if (al) {
-		if (! (p->handler_set.arg_list = malloc(sizeof(al)))) {
+		if (! (p->handler_set.arg_list = malloc(sizeof(*al)))) {
 			fprintf(stderr, "Failed to allocate memory on heap!\n");
 			return false;
 		}

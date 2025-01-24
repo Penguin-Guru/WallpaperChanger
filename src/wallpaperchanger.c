@@ -331,8 +331,6 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 	//return did_something = true;
 }
 bool handle_set_new(const arg_list_t * const al) {
-	assert(al->ct == 0);
-
 	// Invalid directory path?
 	//if (dirpath == NULL || *dirpath == '\0') return errno = EINVAL;
 	//if (wallpaper_path == NULL || *wallpaper_path == '\0') {
@@ -412,7 +410,6 @@ bool handle_set_new(const arg_list_t * const al) {
 	return false;
 }*/
 bool handle_set_fav(const arg_list_t * const al) {
-	assert(al->ct == 0);
 	// Choose a favourite file.
 	// 	set_wallpaper "$(grep -E '[Ff]avourite\s*$' < "$LogFile" | cut -d\  -f2 | sort -Ru | head -1)"
 	// 	(TODO) Prefer not:
@@ -469,7 +466,6 @@ bool handle_set_next(param_arg_ct argcnt, argument *arg) {
 }*/
 
 bool handle_fav_current(const arg_list_t * const al) {
-	assert(al->ct == 0);
 	tags_t criteria = encode_tag(TAG_CURRENT);
 	tags_t tags_to_add = encode_tag(TAG_FAVOURITE);
 	if (add_tag_by_tag(data_file_path, &criteria, &tags_to_add) == 0) {
@@ -479,7 +475,6 @@ bool handle_fav_current(const arg_list_t * const al) {
 	return true;
 }
 bool handle_delete_current(const arg_list_t * const al) {
-	assert(al->ct == 0);
 	tags_t p_criteria = encode_tag(TAG_CURRENT);
 	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
 	rows_t rows;
