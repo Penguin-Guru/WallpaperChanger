@@ -5,8 +5,11 @@
 #include "init.h"
 #include "cli.h"
 #include "config.h"
+#include "libxdgbasedir.h"
 
 handler_set_list_t run_mode_params;
+uint_fast8_t num_config_files_loaded = 0;
+
 
 bool handle_config_file(const arg_list_t * const al) {
 	assert(al != NULL);
@@ -56,7 +59,7 @@ void free_params(handler_set_list_t *list) {
 	}
 	free(list->hs);
 }
-bool register_param(parameter_t *p, const arg_list_t * const al) {
+bool register_param(parameter_t *p, const arg_list_t * const al, const enum LoadSource load_source) {
 	assert(al == NULL || al->ct > 0);	// Don't store empty containers.
 	assert(!(al == NULL && p->arg_params.min != 0));
 	assert(
@@ -71,16 +74,22 @@ bool register_param(parameter_t *p, const arg_list_t * const al) {
 			list = &run_mode_params;
 			break;
 		case INIT :
+			if (load_source == CONFIG_FILE && p->previous_load == CLI) {
+				if (verbosity) printf("C.L.I. parameter over-riding config setting: \"%s\"\n", p->handler_set.name);
+				return true;	// This is not a failure case.
+			}
 			if (! p->handler_set.fn(al)) {
 				if (verbosity >= 2) printf("Handling init type parameter: \"%s\"\n", p->handler_set.name);	// Improve failure message clarity.
 				// Caller invokes clean_up().
 				return false;
 			}
+			p->previous_load = load_source;
 			return true;
 		default:
 			fprintf(stderr, "Invalid parameter type for \"%s\".\n", p->flag_pair.long_flag);
 			return false;
 	}
+	p->previous_load = load_source;
 
 	// Resize list to accommodate the new handler_set:
 	if (! (list->hs = (handler_set_t**)reallocarray(list->hs, list->ct + 1, sizeof(handler_set_t*)))) {

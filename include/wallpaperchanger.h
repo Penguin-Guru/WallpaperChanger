@@ -24,8 +24,3 @@ static file_path_t *s_wallpapers = NULL;
 bool follow_symlinks_beyond_specified_directory = false;
 static int s_directory_depth_remaining = MAX_DIRECTORY_DEPTH;
 
-
-/* Misc. intermediary functions: */
-
-bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags);
-

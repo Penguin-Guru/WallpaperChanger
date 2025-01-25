@@ -60,6 +60,12 @@ enum ParamType {
 	RUN
 };
 
+enum LoadSource {
+	NONE = 0,
+	CLI,
+	CONFIG_FILE
+};
+
 typedef struct {
 	const param_arg_ct min, max;
 } param_arg_parameters_t;	// Name is odd. Consider alternatives.
@@ -69,6 +75,7 @@ typedef struct {
 	const flag_pair_t flag_pair;
 	const param_arg_parameters_t arg_params;
 	enum ParamType type;
+	enum LoadSource previous_load;
 } parameter_t;	// Parameter definition. param_def_t
 
 typedef uint_fast8_t param_ct;	// Limits the number of parameters the application may accept.

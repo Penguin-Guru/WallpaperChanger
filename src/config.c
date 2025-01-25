@@ -59,7 +59,7 @@ bool parse_line(char *line) {
 			.ct=arg_ct,
 			.args=args
 		};
-		return register_param(param, &al);
+		return register_param(param, &al, CONFIG_FILE);
 	}
 	// Unary operations/parameters are not currently supported.
 	return false;

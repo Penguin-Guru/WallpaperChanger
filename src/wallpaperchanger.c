@@ -25,7 +25,6 @@
 #include "graphics.h"
 
 
-
 void clean_up() {
 	if (s_wallpapers) {	// Depends on run mode.
 		for (size_t i = 0; i < s_wallpapers_ct; i++) free(s_wallpapers[i]);

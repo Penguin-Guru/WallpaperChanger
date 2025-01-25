@@ -2,7 +2,6 @@
 #include <stdlib.h>	// For malloc.
 #include <string.h>
 #include <assert.h>
-//#include "parameter.h"
 #include "cli.h"
 #include "init.h"
 #include "argument.h"
@@ -41,13 +40,13 @@ parameter_t *param_buff = NULL;
 arg_list_t args_buff = {};	// Heap currently realloc'd to accommodate each new argument per parameter.
 
 static inline bool push_param_buff() {	// For parameters with arguments.
-	bool ret = register_param(param_buff, &args_buff);
+	bool ret = register_param(param_buff, &args_buff, CLI);
 	reset_args_buffer(&args_buff);
 	return ret;
 }
 static inline bool push_param_unbuff(parameter_t *param) {	// For parameters without arguments.
 	if (param == NULL) param = param_buff;
-	bool ret = register_param(param, NULL);
+	bool ret = register_param(param, NULL, CLI);
 	if (args_buff.ct) {
 		fprintf(stderr, "Cli: pushing unbuffered parameter, but the argument buffer was not empty.\n");
 		free_args(&args_buff);
@@ -106,7 +105,6 @@ static bool match_long_param(long_flag_t arg) {
 }
 
 bool parse_params(int argc, char** argv) {
-	assert(sizeof(params_known) > 0);
 	for (unsigned short i = 1; i < argc; i++) {
 		//argv++;
 		char *argvi = argv[i];
