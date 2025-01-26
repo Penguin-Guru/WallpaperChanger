@@ -3,16 +3,22 @@
 #include <string.h>
 #include <stdlib.h>	// For free.
 #include <stdio.h>	// For fprintf.
+#include <assert.h>
+#include <math.h>	// For powf.
 #include "config.h"
 #include "init.h"
 #include "verbosity.h"
 
+#define WHITESPACE_CHARACTERS " \t\r\n\v\f"
+#define KEY_VALUE_DELIMS "=:" WHITESPACE_CHARACTERS
+#define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
+
 
 bool parse_line(char *line) {
 	char *op;
-	if (op = strpbrk(line, "=:")) {	// Move these later.
-		char label[op - line];
-		strlcpy(label, line, op - line);
+	if (op = strpbrk(line, KEY_VALUE_DELIMS)) {
+		char label[op - line + 1];
+		strlcpy(label, line, op - line + 1);
 
 		// Identify the operation/parameter (label).
 		parameter_t *param = NULL;
@@ -30,14 +36,20 @@ bool parse_line(char *line) {
 
 		// Parse the terms/arguments.
 		char *buff = NULL, *saveptr;
-		const char Arg_Delims[] = ",; \t\r\n\v\f";	// Move these later.
 		param_arg_ct arg_ct = 0;
 		for(
-			buff = strtok_r(op+1, Arg_Delims, &saveptr)
+			buff = strtok_r(op+1, VALUE_DELIMS, &saveptr)
 			;buff != NULL && arg_ct <= etc;
-			buff = strtok_r(NULL, Arg_Delims, &saveptr)
+			buff = strtok_r(NULL, VALUE_DELIMS, &saveptr)
 		) {
-			args[arg_ct++] = buff;
+			// Skip key/value delims (that aren't whitespace) in case they were not separated by whitespace.
+			static_assert(
+				((unsigned short)floorf(powf(2,(sizeof(uint_fast8_t)*8)))) >= MAX_COLUMN_LENGTH,
+				"skip data type must be sized to fit potential column length"
+			);
+			uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
+			if (strlen(buff) == skip) continue;
+			args[arg_ct++] = buff + skip;
 		}
 		if (arg_ct < param->arg_params.min || arg_ct > etc) {
 			fprintf(stderr,
