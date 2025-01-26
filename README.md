@@ -1,2 +1,44 @@
 # WallpaperChanger
-A fairly simple but over-engineered wallpaper manager.
+This is a fairly simple wallpaper manager that will probably only work on Linux. The code is still messy and the overall design is questionable. I wanted to rewrite my Bash script in C++, then I decided to port that to C. It was mostly for practice but I do use this regularly. I know there are a few areas in which the code can be improved and I'm sure there are some bugs I haven't caught yet. Please file any issues and I'll fix what I can.
+
+## How it works:
+
+This program supports simple operations:
+- Setting a specific wallpaper by file path.
+- Finding a wallpaper in a directory (recursively) that has not been previously used.
+- Marking certain wallpapers as favourites.
+- Selecting a wallpaper that has been previously marked as a favourite.
+- Possibly more, if this list is out of date...
+
+Currently, the only database format supported is a flat text file. This is my personal preference, because it makes the data easily accessible. By default, the program currently uses "$XDG_DATA_HOME/wallpapers.log".
+
+When looking for images on the file system, the default path is: "$XDG_DATA_HOME/wallpapers/". The program will complain if any entries in the database point outside of that path. Symlinks to files are always followed and symlinks to directories can be followed if requested.
+
+Verbosity is configurable.
+
+A config file is supported if useful. By default, the file should be "$XDG_CONFIG_HOME/wallpaper-changer.conf". It is read line by line. Each line should contain the following elements (from left to right):
+1. A long-form parameter key (without the hyphens).
+2. An equals symbol (delimiter).
+3. A space separated list of values, read from left to right.
+
+## How to use it:
+
+This will only work on (more or less) POSIX systems and will probably only work on linux. Those are because it currently uses unistd.h and _GNU_SOURCE. I have only tested it with Xorg and have only compiled it with GCC.
+
+### Libraries required:
+- xcb
+- xcb-image
+- xcb-util
+- xcb-errors
+- FreeImage (for reading in image files)
+- magic (for parsing MIME types)
+
+### Compilation:
+
+I have included the lazy build script I used for development, "[redo.sh](redo.sh)". You *should* be able to compile the program simply by running the script, but you should also be able to see the commands it would run by providing the word `print` as a parameter. It also supports a few other convenience features for development. By default, the program will be built for debugging. To build for production, provide the build script with the word `production` as a parameter.
+
+Depending on how your system libraries are packages, you may need to change the library names in the build script. They are defined with other would-be constants near the top of the script.
+
+## Development:
+
+Contribution is most welcome. I tried to make it relatively easy to add support for alternative system libraries and database formats. I don't really expect to add that support but who knows.
