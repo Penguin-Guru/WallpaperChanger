@@ -48,12 +48,12 @@ declare -a passthrough_params=
 for param in "$@"; do
 	case $param in
 		#[Cc]lean) clean_install=1 ;;
-		[Aa]gain) param_again=1 ;;
-		[Dd]ebug) param_debug=1 ;;
-		[Gg][Dd][Bb]) param_debug=1 ;;
-		[Pp]rint*) param_print_command=1 ;;
-		[Vv]erbose) param_verbose='true' ;;
-		[Pp]rod*) debug_string= ;;
+		[Aa]gain)	param_again=1		;;
+		[Dd]ebug)	param_debug=1		;;
+		[Gg][Dd][Bb])	param_debug=1		;;
+		[Pp]rint*)	param_print_command=1	;;
+		[Vv]erbose)	param_verbose='true'	;;
+		[Pp]rod*)	debug_string=' -O3 '	;;
 		-D*)
 			if [[ $param == '-D' ]]; then
 				echo 'Preprocessor macros must be specified immediately after "-D" (with no space in between).'

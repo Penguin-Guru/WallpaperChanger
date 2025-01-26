@@ -93,6 +93,10 @@ tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	return ret;
 }
 
+inline tags_t encode_tag(enum Tag tag) {
+	return 1<<tag;
+}
+
 row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
 	static_assert(sizeof(Column_Delims-1) > 0, "No column delimiters have been hard-coded.");
 	assert(row_num && row_string);

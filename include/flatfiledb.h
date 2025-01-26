@@ -71,7 +71,7 @@ void free_rows(rows_t* target);
 
 typedef uint_fast8_t token_length_t;
 tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]);
-inline tags_t encode_tag(enum Tag tag) {return 1<<tag;};
+tags_t encode_tag(enum Tag tag);
 //inline tags_t sum_tags
 
 row_t* get_row_if_match(
