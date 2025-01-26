@@ -14,12 +14,12 @@ Currently, the only database format supported is a flat text file. This is my pe
 
 When looking for images on the file system, the default path is: "$XDG_DATA_HOME/wallpapers/". The program will complain if any entries in the database point outside of that path. Symlinks to files are always followed and symlinks to directories can be followed if requested.
 
-Verbosity is configurable.
+Verbosity is configurable. See output of `--help` for usage.
 
-A config file is supported if useful. By default, the file should be "$XDG_CONFIG_HOME/wallpaper-changer.conf". It is read line by line. Each line should contain the following elements (from left to right):
+A config file is supported if useful. By default, the file should be "$XDG_CONFIG_HOME/wallpaper-changer.conf". It is read line by line from top to bottom and left to right. Each line should contain the following elements in order:
 1. A long-form parameter key (without the hyphens).
-2. An equals symbol (delimiter).
-3. A space separated list of values, read from left to right.
+2. A key/value delimiter, which may be either a colon, an equals symbol, or whitespace.
+3. A list of values, read from left to right, each separated by a comma, a semicolon, or whitespace.
 
 ## How to use it:
 
