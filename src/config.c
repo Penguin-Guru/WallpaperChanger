@@ -25,7 +25,6 @@ bool parse_line(char *line) {
 		if (!param) return false;
 
 		// Now we know how many terms/arguments the operation/parameter expects.
-		//param_arg_ct etc = param->handler_set.arg_list->ct;
 		param_arg_ct etc = param->arg_params.max;
 		argument args[etc] = {};
 
@@ -40,7 +39,6 @@ bool parse_line(char *line) {
 		) {
 			args[arg_ct++] = buff;
 		}
-		//if (arg_ct != etc) {
 		if (arg_ct < param->arg_params.min || arg_ct > etc) {
 			fprintf(stderr,
 				"Config: Invalid number of arguments for parameter \"%s\" (\"%s\").\n"
@@ -83,7 +81,6 @@ bool parse_file(const file_path_t file_path) {
 		return false;
 	}
 	// Consider seeking default file name if non-default directory is specified without a file name.
-	//free(stat);	// ?
 
 
 	FILE *f = fopen(file_path, "r");
@@ -102,8 +99,7 @@ bool parse_file(const file_path_t file_path) {
 	char *line = NULL;
 	size_t size = 0;
 	while (getline(&line, &size, f) > 0) {
-		// Ignore commented lines.
-		if (line[0] == '#') continue;
+		if (line[0] == '#') continue;	// Ignore commented lines.
 		if (!parse_line(line)) {
 			fprintf(stderr, "Discontinuing the config parse.\n");
 			fclose(f);
