@@ -21,6 +21,8 @@ A config file is supported if useful. By default, the file should be "$XDG_CONFI
 2. A key/value delimiter, which may be either a colon, an equals symbol, or whitespace.
 3. A list of values, read from left to right, each separated by a comma, a semicolon, or whitespace.
 
+Wallpaper file paths must not contain semicolons. This is typically disallowed by operating systems anyway.
+
 ## How to use it:
 
 This will only work on (more or less) POSIX systems and will probably only work on linux. Those are because it currently uses unistd.h, magic.h, and _GNU_SOURCE. I have only tested it with Xorg but it might work with Wayland.

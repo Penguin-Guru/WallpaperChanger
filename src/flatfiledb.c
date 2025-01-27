@@ -70,11 +70,11 @@ tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	char *token[MAX_COLUMN_LENGTH], *buff = NULL, *saveptr;
 	token_length_t token_len = 0;
 	for (
-			buff = strtok_r(writable_column_string, &Tag_Delims[0], &saveptr)
+			buff = strtok_r(writable_column_string, TAG_DELIMS, &saveptr)
 		;
 			buff != NULL
 		;
-			buff = strtok_r(NULL, &Tag_Delims[0], &saveptr)
+			buff = strtok_r(NULL, TAG_DELIMS, &saveptr)
 	) {
 		//if (token_len == 0 || strcmp(buff, token[token_len-1])) token[token_len++] = buff;
 		for (unsigned short i = 0; i < sizeof(tags_known)/sizeof(tags_known[0]); i++) {
@@ -98,7 +98,7 @@ inline tags_t encode_tag(enum Tag tag) {
 }
 
 row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
-	static_assert(sizeof(Column_Delims-1) > 0, "No column delimiters have been hard-coded.");
+	static_assert(strlen(COLUMN_DELIMS) > 0, "No column delimiters have been hard-coded.");
 	assert(row_num && row_string);
 	assert(!(n_criteria && p_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 
@@ -109,11 +109,11 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 	char token[NUM_COLUMNS][MAX_COLUMN_LENGTH];
 	token_length_t token_len = 0;
 	for (
-			buff = strtok_r(writable_row_string, Column_Delims, &saveptr)
+			buff = strtok_r(writable_row_string, COLUMN_DELIMS, &saveptr)
 		;
 			buff != NULL
 		;
-			buff = strtok_r(NULL, Column_Delims, &saveptr)
+			buff = strtok_r(NULL, COLUMN_DELIMS, &saveptr)
 	) {
 		// Add to token array if first or different from previous.
 		if (token_len == 0 || strcmp(buff, token[token_len-1])) strncpy(token[token_len++], buff, MAX_COLUMN_LENGTH);
@@ -281,6 +281,11 @@ row_t* get_current(const file_path_t file_path) {
 bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	if (!new_entry) return false;
 
+	if (strpbrk(new_entry->file, COLUMN_DELIMS)) {
+		fprintf(stderr, "Not adding entry to database. File path contains invalid characters-- probably a semicolon or newline.\n");
+		return false;
+	}
+
 	bool created_new_file;
 	FILE *f = fopen(data_file_path, "r+b");
 	if (f == 0) {
@@ -308,9 +313,11 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	gen_tag_string(tag_string, new_entry->tags);
 
 	if (created_new_file) {
-		if (fprintf(f, "%s %s %s\n",	// No need for end-of-file?
+		if (fprintf(f, "%s%c%s%c%s\n",	// No need for end-of-file?
 			new_entry->ts,
+			COLUMN_DELIM,
 			new_entry->file,
+			COLUMN_DELIM,
 			tag_string
 		) <= 0) {
 			fprintf(stderr, "Failed to append new current entry to database.\n");
@@ -346,9 +353,11 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
 			gen_tag_string(tag_string, row->tags & (~current_mask));
-			if (fprintf(tmp, "%s %s %s\n",	// No need for end-of-file?
+			if (fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
 				row->ts,
+				COLUMN_DELIM,
 				row->file,
+				COLUMN_DELIM,
 				tag_string
 			) <= 0) {
 				fprintf(stderr, "Failed to remove pre-existing current entry from database.\n");
@@ -363,9 +372,11 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 		}
 	}
 	free(string);
-	if (fprintf(tmp, "%s %s %s\n",	// No need for end-of-file?
+	if (fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
 		new_entry->ts,
+		COLUMN_DELIM,
 		new_entry->file,
+		COLUMN_DELIM,
 		tag_string
 	) <= 0) {
 		fprintf(stderr, "Failed to append new current entry to database.\n");
@@ -405,10 +416,11 @@ void gen_tag_string(char *string, tags_t tags) {
 				total_len += len;
 			} else {
 				unsigned short len = strlen(tags_known[i].text);
-				total_len += len + 1;	// For comma.
+				total_len += len + 1;	// +1 for TAG_DELIM.
 				assert(total_len <= MAX_COLUMN_TITLE_LENGTH);
-				strcat(string, ",");
-				strncat(string, tags_known[i].text, len);
+				static_assert(sizeof(TAG_DELIM) == 1, "Expected single byte char.\n");
+				char *pos = mempcpy(string, &TAG_DELIM, 1);
+				mempcpy(pos, tags_known[i].text, len);
 			}
 		}
 	}
@@ -457,7 +469,13 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 			tags_t result = row->tags | *tags_mod;
 			char tag_string[Max_Tag_String_Len];
 			gen_tag_string(tag_string, result);
-			fprintf(tmp, "%s %s %s\n", row->ts, row->file, tag_string);
+			fprintf(tmp, "%s%c%s%c%s\n",
+				row->ts,
+				COLUMN_DELIM,
+				row->file,
+				COLUMN_DELIM,
+				tag_string
+			);
 		} else {
 			fputs(string, tmp);
 		}
