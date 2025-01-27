@@ -352,14 +352,27 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 			char tag_string[Max_Tag_String_Len];	// Name takes precedence over previously defined.
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
-			gen_tag_string(tag_string, row->tags & (~current_mask));
-			if (fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
-				row->ts,
-				COLUMN_DELIM,
-				row->file,
-				COLUMN_DELIM,
-				tag_string
-			) <= 0) {
+			int status;
+			if (row->tags == current_mask) {
+				// Current is this entry's only tag.
+				row->tags = '\0';
+				status = fprintf(tmp, "%s%c%s\n",	// No need for end-of-file?
+					row->ts,
+					COLUMN_DELIM,
+					row->file
+					// Tag field is not necessary.
+				);
+			} else {
+				gen_tag_string(tag_string, row->tags & (~current_mask));
+				status = fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
+					row->ts,
+					COLUMN_DELIM,
+					row->file,
+					COLUMN_DELIM,
+					tag_string
+				);
+			}
+			if (status <= 0) {
 				fprintf(stderr, "Failed to remove pre-existing current entry from database.\n");
 				free_row(row);
 				fclose(f);
