@@ -103,7 +103,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 	assert(!(n_criteria && p_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 
 	int row_string_length = strnlen(row_string, MAX_ROW_LENGTH);
-	char writable_row_string[row_string_length];
+	char writable_row_string[row_string_length + 1];
 	strcpy(writable_row_string, row_string);
 	char *buff = NULL, *saveptr;
 	char token[NUM_COLUMNS][MAX_COLUMN_LENGTH];
