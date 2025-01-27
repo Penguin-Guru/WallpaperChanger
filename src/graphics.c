@@ -400,7 +400,6 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 
 	// Testing:
 	//bits_per_pixel = img->scan_width / img->width;
-	bits_per_pixel = depth;	// This seems to help. Not sure why terminology would conflict.
 	scanline_unit = 0;	// Testing based on ZPixmap case in xcb_image_create_native().
 		// xcb_image_t definition in xcb_image.h says: ZPixmap (bpp!=1): will be max(8,bpp). Must be >= bpp.
 	//scanline_pad = 24;
@@ -904,7 +903,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path) {
 
 	image_t *img = get_pixel_data(
 		wallpaper_file_path,
-		depth,
+		bits_per_pixel,
 		screen_width,
 		screen_height
 	);
