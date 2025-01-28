@@ -9,12 +9,14 @@
 #include "init.h"
 #include "verbosity.h"
 
-#define WHITESPACE_CHARACTERS " \t\r\n\v\f"
+#define SPACE_AND_TAB " \t"
+#define WHITESPACE_CHARACTERS SPACE_AND_TAB "\r\n\v\f"
 #define KEY_VALUE_DELIMS "=:" WHITESPACE_CHARACTERS
 #define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
 
 
 bool parse_line(char *line) {
+	line += strspn(line, SPACE_AND_TAB);	// Ignore conventional indentation.
 	char *op;
 	if (op = strpbrk(line, KEY_VALUE_DELIMS)) {
 		char label[op - line + 1];
