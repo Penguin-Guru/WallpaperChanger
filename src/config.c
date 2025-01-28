@@ -15,8 +15,7 @@
 #define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
 
 
-bool parse_line(char *line) {
-	line += strspn(line, SPACE_AND_TAB);	// Ignore conventional indentation.
+bool parse_line(const char * const line) {
 	char *op;
 	if (op = strpbrk(line, KEY_VALUE_DELIMS)) {
 		char label[op - line + 1];
@@ -77,6 +76,30 @@ bool parse_line(char *line) {
 	return false;
 }
 
+char* strrcpbrk(const char * const start, const char *end, const char * const reject) {
+	// Seek backwards for first non-matching char.
+	// This is similar to strpbrk.
+	assert(end >= start);
+	while (end != start) {
+		const char *r = reject;
+		while (*r != '\0') {
+			if (*r++ == *end) return (char*)end;
+		}
+		--end;
+	}
+	return NULL;
+}
+size_t clip_trailing_chars(char *start, char *end, const char *chars) {
+	assert(end > start);	// Hopefully catch overflows.
+	if (*end != '\0') *end = '\0';
+	if ((end = strrcpbrk(start, end, chars))) {
+		assert(end >= start);
+		*end = '\0';	// Clip string at position.
+		return end - start;
+	}
+	return 0;
+}
+
 bool parse_file(const file_path_t file_path) {
 	// Not currently offering to create the file.
 
@@ -113,9 +136,20 @@ bool parse_file(const file_path_t file_path) {
 	char *line = NULL;
 	size_t size = 0;
 	while (getline(&line, &size, f) > 0) {
-		if (line[0] == '#') continue;	// Ignore commented lines.
-		if (!parse_line(line)) {
-			fprintf(stderr, "Discontinuing the config parse.\n");
+		char *parse_start = line + strspn(line, WHITESPACE_CHARACTERS);		// Ignore conventional indentation.
+		char * const parse_end = strchrnul(parse_start, '#');			// Check for comment delimiter.
+		if (parse_end - parse_start == 0) continue;				// The whole line is a comment. Ignore it.
+		clip_trailing_chars(parse_start, parse_end, WHITESPACE_CHARACTERS);	// Trim trailing whitespace. (unnecessary)
+		// Finished pre-processing. Proceed to main parsing of line.
+		if (!parse_line(parse_start)) {
+			fprintf(stderr,
+				"Invalid line in config file: \"%s\"\n"
+					"\tInvalid line is: \"%s\"\n"
+					"\tDiscontinuing config parse.\n"
+				,
+				file_path,
+				parse_start
+			);
 			fclose(f);
 			return false;
 		}
