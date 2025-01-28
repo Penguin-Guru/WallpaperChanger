@@ -131,7 +131,7 @@ if ((! param_again)); then
 fi
 
 if ((param_debug)); then
-	gdb -ex=r --args "$Exe"	${passthrough_params[*]}
+	gdb -ex=r --args "$Exe"	${passthrough_params[*]:+${passthrough_params[*]@Q}}
 else
 	while true; do
 		declare ans=
@@ -143,11 +143,11 @@ else
 		case $ans in
 			[Rr]*)
 				if ((param_print_command)); then
-					echo "\"$Exe\" ${passthrough_params[*]}"
+					echo "\"$Exe\" ${passthrough_params[*]:+${passthrough_params[*]@Q}}"
 					exit 0
 				fi
 				echo 'Running program...'
-				"$Exe" ${passthrough_params[*]}
+				"$Exe" ${passthrough_params[*]:+${passthrough_params[*]@Q}}
 				exit $?
 				;;
 			[Gg]*)
@@ -155,12 +155,14 @@ else
 					echo 'Printing debug commands is not currently supported.'
 					exit 1
 				fi
-				gdb -ex=r --args "$Exe" "${passthrough_params[*]}"
+				echo "passthrough_params: \"${passthrough_params[*]:+${passthrough_params[*]@Q}}\""
+				gdb -ex=r --args "$Exe" ${passthrough_params[*]:+${passthrough_params[*]@Q}}
+				#gdb -ex=r --args "$Exe"
 				exit $?
 				;;
 			[Vv]*)
 				declare ValgrindLog='valgrind.log'
-				declare ValgrindCmd="valgrind --log-file=$ValgrindLog --leak-check=full --show-leak-kinds=all --track-origins=yes --read-var-info=yes $Exe ${passthrough_params[*]}"
+				declare ValgrindCmd="valgrind --log-file=$ValgrindLog --leak-check=full --show-leak-kinds=all --track-origins=yes --read-var-info=yes $Exe ${passthrough_params[*]:+${passthrough_params[*]@Q}}"
 				if ((param_print_command)); then
 					echo "$ValgrindCmd"
 					break;
