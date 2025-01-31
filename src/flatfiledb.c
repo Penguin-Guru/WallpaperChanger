@@ -424,19 +424,36 @@ void gen_tag_string(char *string, tags_t tags) {
 	for (unsigned short i = 0; i < sizeof(tags_known)/sizeof(tags_known[0]); i++) {	// Will they all be populated?
 		if (tags & encode_tag(i)) {
 			if (string[0] == '\0') {
-				unsigned short len = strlen(tags_known[i].text);
-				strcpy(string, tags_known[i].text);
+				unsigned short len = strlen(tags_known[i].text);	// Not including terminating null.
+				memcpy(string, tags_known[i].text, len);
 				total_len += len;
 			} else {
-				unsigned short len = strlen(tags_known[i].text);
-				total_len += len + 1;	// +1 for TAG_DELIM.
-				assert(total_len <= MAX_COLUMN_TITLE_LENGTH);
 				static_assert(sizeof(TAG_DELIM) == 1, "Expected single byte char.\n");
-				char *pos = mempcpy(string, &TAG_DELIM, 1);
+				char *pos = mempcpy(string + total_len++, &TAG_DELIM, 1);	// Incrementing.
+				unsigned short len = strlen(tags_known[i].text);	// Not including terminating null.
+				total_len += len;
 				mempcpy(pos, tags_known[i].text, len);
 			}
 		}
+		if (total_len > Max_Tag_String_Len) {
+			{
+				char * const clip = strrchr(string, TAG_DELIM);
+				if (clip) *clip = '\0';
+				else string[Max_Tag_String_Len] = '\0';
+			}
+			fprintf(stderr,
+				"Tag string exceeds max column length! It will be truncated or ignored.\n"
+					"\tMax length: %d\n"
+					"\tString length: %hu\n"
+					"\tString: \"%s\"\n"
+				, Max_Tag_String_Len
+				, total_len
+				,string
+			);
+			return;
+		}
 	}
+	string[total_len] = '\0';	// Terminate the string.
 }
 
 num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod) {
