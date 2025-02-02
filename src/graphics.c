@@ -231,6 +231,26 @@ void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const 
 }
 
 void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * const result) {
+	uint32_t virtual_desktop_id = 0;
+	const atom_pair Net_Current_Desktop = {
+		.name = "_NET_CURRENT_DESKTOP",
+		.id = get_atom(conn, "_NET_CURRENT_DESKTOP")
+	};
+	{
+		xcb_get_property_reply_t *current_desktop_reply;
+		if ((current_desktop_reply = get_property_reply(conn, win,
+			Net_Current_Desktop.id, XCB_ATOM_CARDINAL, 4*4,
+			0
+		))) {
+			uint32_t *current_desktop_value = (uint32_t*){xcb_get_property_value(current_desktop_reply)};
+			// Should probably add data validation.
+			virtual_desktop_id = *current_desktop_value;
+			p_delete(&current_desktop_reply);
+			return;
+		}
+	}
+
+
 	//
 	// Test whether window manager supports "_NET_WORKAREA". If so, use that.
 	//
@@ -244,10 +264,10 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 			Net_Workarea.id, XCB_ATOM_CARDINAL, 4*4,
 			0
 		))) {
-			printf("Using \"%s\". This functionality is untested!\n", Net_Workarea.name);
-			uint32_t *workarea_atom_value = (uint32_t*){xcb_get_property_value(workarea_atom_reply)};
-			result->width = workarea_atom_value[2];
-			result->height = workarea_atom_value[3];
+			printf("Using \"%s\". This functionality is untested! Please report bugs.\n", Net_Workarea.name);
+			uint32_t **workarea_atom_value = (uint32_t**){xcb_get_property_value(workarea_atom_reply)};
+			result->width = workarea_atom_value[virtual_desktop_id][2];
+			result->height = workarea_atom_value[virtual_desktop_id][3];
 			p_delete(&workarea_atom_reply);
 			return;
 		}
@@ -256,6 +276,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 
 	//
 	// "_NET_WORKAREA" is unavailable. Fall back on iterating through all windows...
+	// To do: limit search to windows on the current monitor.
 	// It might be more efficient to use "_NET_FRAME_EXTENTS". I'm not sure how reliable that is.
 	//
 
