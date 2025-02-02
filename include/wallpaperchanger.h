@@ -16,6 +16,8 @@ static file_path_t
 	wallpaper_path = NULL	// Wallpaper to operate on.
 ;
 
+bool scale_for_wm = true;	// Scale wallpapers based on static, foreground windows.
+
 // Cache used by some functions:
 static size_t s_wallpapers_ct = 0;
 static file_path_t *s_wallpapers = NULL;

@@ -35,6 +35,19 @@ void clean_up() {
 	if (wallpaper_path) free(wallpaper_path);	// Depends on run mode.
 }
 
+bool is_text_true(const char  * const string) {
+	static const char * const Keywords[] = {
+		"true",
+		"yes"
+	};
+	static const uint_fast8_t Keywords_ct = sizeof(Keywords) / sizeof(Keywords[0]);
+	//for (const char * const * it = keywords[0]; 
+	for (uint_fast8_t i = 0; i < Keywords_ct; i++) {
+		if (!strcasecmp(string, Keywords[i])) return true;
+	}
+	return false;
+}
+
 
 /* Misc. intermediary functions: */
 
@@ -582,6 +595,15 @@ bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const 
 	assert(al == NULL);
 	follow_symlinks_beyond_specified_directory = true;
 	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n", wallpaper_path);
+	return true;
+}
+bool handle_scale_for_wm(const arg_list_t * const al) {
+	assert(al);
+	assert(al->ct == 1);
+	assert(al->args[0]);
+	if (is_text_true(al->args[0])) scale_for_wm = true;
+	else scale_for_wm = false;
+	if (verbosity > 1) printf("User set: scale_for_wm = %s\n", scale_for_wm ? "true" : "false");
 	return true;
 }
 

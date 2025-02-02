@@ -6,10 +6,27 @@
 //#include <xcb/xcbext.h>
 #include <stdlib.h>	// For free.
 #include <stdio.h>	// For fprintf.
+#include <assert.h>
 #include "graphics.h"
 #include "image.h"
 #include "verbosity.h"
 //#include "util.h"
+
+
+static const uint_fast8_t MAX_ATOM_NAME_LEN = 100;
+
+extern bool scale_for_wm;
+
+typedef struct atom_pair {
+	const char *name;
+	const xcb_atom_t id;
+} atom_pair;
+
+typedef struct atom_pack {
+	atom_pair query_atom;
+	atom_pair match_atom;
+	atom_pair key_atom;
+} atom_pack;
 
 
 /* Utility functions: */
@@ -57,6 +74,277 @@ static void handle_error(xcb_connection_t *conn, xcb_generic_error_t *gen_err) {
 	free(gen_err);
 }
 
+xcb_atom_t get_atom(xcb_connection_t* conn, const char *atom_name) {
+	xcb_intern_atom_cookie_t atom_cookie;
+	xcb_atom_t atom;
+	xcb_intern_atom_reply_t *rep;
+
+	atom_cookie = xcb_intern_atom(conn, 0, strlen(atom_name), atom_name);
+	if (!(rep = xcb_intern_atom_reply(conn, atom_cookie, NULL))) {
+		fprintf(stderr, "No I.D. found for atom: \"%s\"\n", atom_name);
+		return '\0';
+	}
+	atom = rep->atom;
+	free(rep);
+	if (verbosity >= 4) printf("Received I.D. for atom: \"%s\" (%d)\n", atom_name, atom);
+	return atom;
+}
+bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_ATOM_NAME_LEN+1]) {
+	xcb_generic_error_t *err;
+	xcb_get_atom_name_cookie_t atom_c = xcb_get_atom_name(conn, atom);
+	xcb_get_atom_name_reply_t *atom_r = xcb_get_atom_name_reply(conn, atom_c, &err);
+	if (!atom_r) {
+		static const char *text = "(No reply to atom name query)";
+		assert(strlen(text) <= MAX_ATOM_NAME_LEN);
+		strcpy(name, text);
+		return false;
+	} else {
+		if (err) handle_error(conn, err);
+		const int length = xcb_get_atom_name_name_length(atom_r);
+		if (length > MAX_ATOM_NAME_LEN) {
+			fprintf(stderr,
+				"Name of atom %u exceeds maximum supported length.\n"
+					"\tReported length: %d\n"
+					"\tMax supported length: %hu\n"
+				, atom
+				, length
+				, MAX_ATOM_NAME_LEN
+			);
+			return false;
+		}
+		//strcpy(name, xcb_get_atom_name_name(atom_r));
+		//strncpy(name, xcb_get_atom_name_name(atom_r), length);
+		//strncpy(name, xcb_get_atom_name_name(atom_r), MAX_ATOM_NAME_LEN);
+		// strcpy and strncpy introduce erroneous values in some cases. I'm not sure why.
+		strlcpy(name, xcb_get_atom_name_name(atom_r), length + 1);
+		return true;
+	}
+}
+
+
+typedef struct XY_Dimensions {
+	uint_fast16_t width;
+	uint_fast16_t height;
+} XY_Dimensions;
+xcb_get_property_reply_t* get_property_reply(
+	xcb_connection_t * conn, xcb_window_t * win,
+	xcb_atom_t atom, const xcb_atom_enum_t type, const uint32_t length,
+	const uint_fast8_t verbosity
+) {
+	xcb_generic_error_t *err;
+
+	xcb_get_property_cookie_t prop_c = xcb_get_property(conn, false, *win, atom, type, 0, length ? length : ~0);
+	if (!prop_c.sequence) {
+		char atom_name[MAX_ATOM_NAME_LEN];
+		get_atom_name(conn, atom, atom_name);
+		fprintf(stderr,
+			"Null or zero sequence returned by xcb_get_property. Not sure if normal.\n"
+				"\tAtom name: %s"
+				"\tAtom I.D.: %d"
+			,
+			atom_name,
+			atom
+		);
+		return NULL;
+	}
+	xcb_aux_sync(conn);	// Not sure if necessary.
+	xcb_flush(conn);	// Probably not necessary.
+
+	xcb_get_property_reply_t *prop_r;
+	if (!(prop_r = xcb_get_property_reply(conn, prop_c, &err))) {
+		fprintf(stderr, "Property reply was not received.\n");
+		if (err) handle_error(conn, err);
+	} else {
+		if (err) {
+			fprintf(stderr, "Failed to query atom.\n");
+			handle_error(conn, err);
+			p_delete(&prop_r);
+		} else if (prop_r->type == XCB_NONE) {
+			if (verbosity > 1) printf("Atom query returned XCB_NONE.\n");
+			p_delete(&prop_r);
+		} else if (prop_r->type != type) {
+			fprintf(stderr,
+				"Atom property query returned an unexpected type: %d\n"
+					"\tExpected type: %d\n"
+				, prop_r->type
+				, type
+			);
+			p_delete(&prop_r);
+		} else if (length != 0 && xcb_get_property_value_length(prop_r) != length) {
+			fprintf(stderr, "Atom property query returned an unexpected length: %d\n", xcb_get_property_value_length(prop_r));
+			p_delete(&prop_r);
+		}
+	}
+	return prop_r;
+}
+void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const atom_pack * const atoms,  XY_Dimensions * const result) {
+	xcb_query_tree_cookie_t qtc;
+	xcb_query_tree_reply_t *qtr;
+	xcb_generic_error_t *err;
+
+	xcb_get_property_reply_t *query_atom_reply;
+	if ((query_atom_reply = get_property_reply(conn, win,
+		atoms->query_atom.id,
+		XCB_ATOM_ATOM,
+		(strlen(atoms->query_atom.name)*8)/32,	// 8b --> 32b
+		0
+	))) {
+		uint32_t *query_atom_value = (uint32_t*){xcb_get_property_value(query_atom_reply)};
+		if (*(xcb_atom_t*)query_atom_value == atoms->match_atom.id) {
+			xcb_get_property_reply_t *strut_partial_reply;
+			if ((strut_partial_reply = get_property_reply(conn, win,
+				atoms->key_atom.id,
+				XCB_ATOM_CARDINAL,
+				12*4,	// CARDINAL[12], each 32bit.
+				1
+			))) {
+				uint32_t *valuee = (uint32_t*){xcb_get_property_value(strut_partial_reply)};
+				result->width += valuee[0] + valuee[1];		// Left + Right.
+				result->height += valuee[2] + valuee[3];	// Top + Bottom.
+				p_delete(&strut_partial_reply);
+			} else {
+				fprintf(stderr, "Failed to query dock window's strut dimensions.\n");
+			}
+			p_delete(&query_atom_reply);
+			return;	// Assuming any child window struts would be included in the parent's.
+		}
+		p_delete(&query_atom_reply);
+	}
+
+
+
+	// Recurse through children:
+
+	qtc = xcb_query_tree(conn, *win);
+	if (!(qtr = xcb_query_tree_reply(conn, qtc, &err))) {
+		if (err) handle_error(conn, err);
+		return;
+	}
+
+	xcb_window_t *children = xcb_query_tree_children(qtr);
+	for (int i = 0; i < xcb_query_tree_children_length(qtr); i++) {
+		get_dock_size_recursively(conn, &children[i], atoms, result);
+	}
+
+	free(qtr);
+	return;
+}
+
+void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * const result) {
+	//
+	// Test whether window manager supports "_NET_WORKAREA". If so, use that.
+	//
+	const atom_pair Net_Workarea = {
+		.name = "_NET_WORKAREA",
+		.id = get_atom(conn, "_NET_WORKAREA")
+	};
+	{
+		xcb_get_property_reply_t *workarea_atom_reply;
+		if ((workarea_atom_reply = get_property_reply(conn, win,
+			Net_Workarea.id, XCB_ATOM_CARDINAL, 4*4,
+			0
+		))) {
+			printf("Using \"%s\". This functionality is untested!\n", Net_Workarea.name);
+			uint32_t *workarea_atom_value = (uint32_t*){xcb_get_property_value(workarea_atom_reply)};
+			result->width = workarea_atom_value[2];
+			result->height = workarea_atom_value[3];
+			p_delete(&workarea_atom_reply);
+			return;
+		}
+	}
+
+
+	//
+	// "_NET_WORKAREA" is unavailable. Fall back on iterating through all windows...
+	// It might be more efficient to use "_NET_FRAME_EXTENTS". I'm not sure how reliable that is.
+	//
+
+	bool
+		//has_window_type = false,	// Assuming support if other criteria are met.
+		has_workarea = false,
+		has_dock = false,
+		has_strut = false,
+		has_strut_partial = false
+	;
+	const atom_pair Net_Wm_Window_Type_Dock = {
+		.name = "_NET_WM_WINDOW_TYPE_DOCK",
+		.id = get_atom(conn, "_NET_WM_WINDOW_TYPE_DOCK")
+	};
+	const atom_pair Net_Wm_Strut = {
+		.name = "_NET_WM_STRUT",
+		.id = get_atom(conn, "_NET_WM_STRUT")
+	};
+	const atom_pair Net_Wm_Strut_Partial = {
+		.name = "_NET_WM_STRUT_PARTIAL",
+		.id = get_atom(conn, "_NET_WM_STRUT_PARTIAL")
+	};
+	{
+		const char *support_atom_name = "_NET_SUPPORTED";
+		const xcb_atom_t NET_SUPPORTED = get_atom(conn, support_atom_name);
+		xcb_get_property_reply_t *support_atom_reply;
+		if (!(support_atom_reply = get_property_reply(conn, win,
+			NET_SUPPORTED, XCB_ATOM_ATOM, 0,
+			1
+		))) {
+			fprintf(stderr, "Failed to query atom: \"%s\"\n", support_atom_name);
+			return;	// Give up.
+		}
+
+		uint32_t *support_atom_value = (uint32_t*){xcb_get_property_value(support_atom_reply)};
+		assert(sizeof(support_atom_value[0]) == 4);
+		const int length = xcb_get_property_value_length(support_atom_reply);	// 8b count of 32b units.
+		assert(length >= sizeof(support_atom_value[0]));
+		if (verbosity >= 5) {
+			printf("Window manager claims to support these features (atoms):\n");
+		}
+		for (int i = 0; i < length/sizeof(support_atom_value[0]); i++) {
+			xcb_atom_t checker = support_atom_value[i];
+			if (verbosity >= 5) {
+				char atom_name[MAX_ATOM_NAME_LEN+1];
+				if (get_atom_name(conn, checker, atom_name)) {
+					printf("\t%s\n", atom_name);
+				} else {
+					printf("\tFailed to query name for atom with decimal I.D. %u.\n", (uint32_t)checker);
+				}
+			}
+			if (checker == Net_Workarea.id) {
+				has_workarea = true;
+				//if (verbosity >= 5) printf("\t\tSufficient. Ending search.\n");
+				//break;
+			} else if (checker == Net_Wm_Window_Type_Dock.id) has_dock = true;
+			else if (checker == Net_Wm_Strut.id) has_strut = true;
+			else if (checker == Net_Wm_Strut_Partial.id) has_strut_partial = true;
+		}
+
+		p_delete(&support_atom_reply);
+	}
+	if (has_workarea) {
+		fprintf(stderr, "Window manager claims to support _NET_WORKAREA but my guess at how to use it was incorrect.\n");
+	}
+	if (!(has_dock && (has_strut || has_strut_partial))) {
+		fprintf(stderr,
+			"Failed to query potential dock size. Window manager is probably unsupported.\n"
+				"\t%s : %s\n"
+				"\t%s : %s\n"
+				"\t%s : %s\n"
+			, Net_Wm_Window_Type_Dock.name, (has_dock ? "true" : "false")
+			, Net_Wm_Strut.name, (has_strut ? "true" : "false")
+			, Net_Wm_Strut_Partial.name, (has_strut_partial ? "true" : "false")
+		);
+		return;
+	}
+	const atom_pack atoms = {
+		.query_atom = {
+			.name = "_NET_WM_WINDOW_TYPE",
+			.id = get_atom(conn, "_NET_WM_WINDOW_TYPE"),
+		},
+		.match_atom = Net_Wm_Window_Type_Dock,
+		.key_atom = has_strut ? Net_Wm_Strut : Net_Wm_Strut_Partial
+	};
+	get_dock_size_recursively(conn, win, &atoms, result);
+}
+
+
 
 /* Functions that interface with graphical display: */
 
@@ -94,7 +382,7 @@ static uint8_t bits_per_pixel = 0;
 
 static xcb_visualtype_t *visual = NULL;	// A visual is a description of a pixel.
 static int depth;	// Number of bits per pixel. In this case, for the root window.
-static uint16_t screen_width, screen_height;
+static uint16_t target_width, target_height;
 static xcb_atom_t esetroot_pmap_id, _xrootpmap_id;
 static xcb_gcontext_t gc;
 
@@ -257,8 +545,8 @@ bool init_xcb() {
 	}
 
 	// Note: Using these values may not account for U.I. elements, like a task bar.
-	screen_width = screen->width_in_pixels;
-	screen_height = screen->height_in_pixels;
+	target_width = screen->width_in_pixels;
+	target_height = screen->height_in_pixels;
 	/*xcb_get_geometry_cookie_t geo_cookie = xcb_get_geometry(conn, screen->root);
 	xcb_get_geometry_reply_t *geo_reply = xcb_get_geometry_reply(conn, geo_cookie, &error);
 	if ((error = xcb_request_check(conn, cookie))) {
@@ -266,8 +554,8 @@ bool init_xcb() {
 		handle_error(conn, error);
 		return false;
 	}
-	screen_width = geo_reply->width;
-	screen_height = geo_reply->height;
+	target_width = geo_reply->width;
+	target_height = geo_reply->height;
 	free(geom_reply);*/
 
 	char byte_order_text[30], bit_order_text[30];
@@ -290,8 +578,8 @@ bool init_xcb() {
 	}*/
 	if (verbosity > 2) printf(
 		"X11 root screen:\n"
-			"\tscreen_width:   %d\n"
-			"\tscreen_height:  %d\n"
+			"\ttarget_width:   %d\n"
+			"\ttarget_height:  %d\n"
 			"\tbits_per_pixel: %hhu\n"
 			"\tscanline_pad:   %hhu\n"
 			"\tdepth: %d\n"
@@ -308,8 +596,8 @@ bool init_xcb() {
 				"\t\tGreen: %06x\n"
 				"\t\t Blue: %06x\n"
 		,
-		screen_width,
-		screen_height,
+		target_width,
+		target_height,
 		bits_per_pixel,
 		scanline_pad,
 		depth,
@@ -365,6 +653,14 @@ bool init_xcb() {
 	}
 	_xrootpmap_id = iar->atom;
 	p_delete(&iar);
+
+
+	if (scale_for_wm) {
+		XY_Dimensions dock = {0};
+		get_dock_size(conn, &screen->root, &dock);
+		target_width -= dock.width;
+		target_height -= dock.height;
+	}
 
 	return true;
 }
@@ -543,15 +839,15 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 
 
 	/*unsigned short dst_x = 0, dst_y = 0;
-	if (img->width != screen_width) {
-		if (img->width < screen_width) dst_x = (screen_width - img->width) / 2;
+	if (img->width != target_width) {
+		if (img->width < target_width) dst_x = (target_width - img->width) / 2;
 		else {
 			fprintf(stderr, "Target image is too large for the screen.\n");
 			return false;
 		}
 	}
-	if (img->height != screen_height) {
-		if (img->height < screen_height) dst_y = (screen_height - img->height) / 2;
+	if (img->height != target_height) {
+		if (img->height < target_height) dst_y = (target_height - img->height) / 2;
 		else {
 			fprintf(stderr, "Target image is too large for the screen.\n");
 			return false;
@@ -879,7 +1175,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path) {
 
 	// Create a pixmap buffer.
 	xcb_pixmap_t p = xcb_generate_id(conn);
-	xcb_create_pixmap(conn, screen->root_depth, p, screen->root, screen_width, screen_height);
+	xcb_create_pixmap(conn, screen->root_depth, p, screen->root, target_width, target_height);
 	if (verbosity > 2) printf("New pixmap (p): \n\t  %u\n\t0x%x\n", p, p);
 	xcb_aux_sync(conn);	// Not sure if necessary.
 	//xcb_flush(conn);
@@ -904,8 +1200,8 @@ bool set_wallpaper(const file_path_t wallpaper_file_path) {
 	image_t *img = get_pixel_data(
 		wallpaper_file_path,
 		bits_per_pixel,
-		screen_width,
-		screen_height
+		target_width,
+		target_height
 	);
 
 	if (!write_to_pixmap(p, img)) {
@@ -1025,18 +1321,8 @@ bool set_wallpaper(const file_path_t wallpaper_file_path) {
 	}*/
 	//if (! (prop_c || prop_c.sequence)) {
 	if (prop_c.sequence == 0) {
-		xcb_get_atom_name_cookie_t atom_c = xcb_get_atom_name(conn, esetroot_pmap_id);
-		xcb_get_atom_name_reply_t *atom_r = xcb_get_atom_name_reply(conn, atom_c, &error);
-		const unsigned short MAX_ATOM_NAME_LEN = 100;
-		char atom_name[MAX_ATOM_NAME_LEN];
-		if (!atom_r) {
-			//fprintf(stderr, "No reply for atom name.\n");
-			strncpy(atom_name, "No reply to atom name query.", MAX_ATOM_NAME_LEN);
-		} else {
-			if (error) handle_error(conn, error);
-			//atom_name = xcb_get_atom_name_name(atom_r);
-			strncpy(atom_name, xcb_get_atom_name_name(atom_r), MAX_ATOM_NAME_LEN);
-		}
+		char atom_name[MAX_ATOM_NAME_LEN+1];
+		get_atom_name(conn, esetroot_pmap_id, atom_name);
 		fprintf(stderr,
 			"Null or zero sequence returned by xcb_get_property. Not sure if normal.\n"
 				"\tAtom name: %s"

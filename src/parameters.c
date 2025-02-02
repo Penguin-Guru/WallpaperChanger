@@ -15,6 +15,7 @@ bool handle_print(const arg_list_t * const al);
 bool handle_database_path(const arg_list_t * const al);
 bool handle_wallpaper_path(const arg_list_t * const al);
 bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const al);
+bool handle_scale_for_wm(const arg_list_t * const al);
 
 bool handle_config_file(const arg_list_t * const al);
 bool handle_verbosity(const arg_list_t * const al);
@@ -206,6 +207,27 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		.arg_params = (param_arg_parameters_t){
 			.min		= 0,
 			.max		= 0
+		},
+		.type = INIT,
+		.previous_load = NONE
+	},
+	{
+		.handler_set = (handler_set_t){
+			.name		= "scale-for-wm",
+			.description	=
+				"Specify whether to scale wallpapers based on static foreground windows, like task bars and docks."
+					"\n\t\t\tNote: The \"wm\" is for \"window manager\". I'll try to improve clarity some day."
+				,
+			.fn		= handle_scale_for_wm,
+			.arg_list	= 0	// Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag	= "scale-for-wm",
+			.short_flag	= NULL
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min		= 1,
+			.max		= 1
 		},
 		.type = INIT,
 		.previous_load = NONE
