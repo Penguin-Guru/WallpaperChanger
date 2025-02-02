@@ -26,6 +26,7 @@ typedef struct atom_pack {
 	atom_pair query_atom;
 	atom_pair match_atom;
 	atom_pair key_atom;
+	atom_pair wm_desktop_atom;
 } atom_pack;
 
 
@@ -82,11 +83,11 @@ xcb_atom_t get_atom(xcb_connection_t* conn, const char *atom_name) {
 	atom_cookie = xcb_intern_atom(conn, 0, strlen(atom_name), atom_name);
 	if (!(rep = xcb_intern_atom_reply(conn, atom_cookie, NULL))) {
 		fprintf(stderr, "No I.D. found for atom: \"%s\"\n", atom_name);
-		return '\0';
+		return 0;	// Null.
 	}
 	atom = rep->atom;
 	free(rep);
-	if (verbosity >= 4) printf("Received I.D. for atom: \"%s\" (%d)\n", atom_name, atom);
+	if (verbosity >= 6) printf("Received I.D. for atom: \"%s\" (%d)\n", atom_name, atom);
 	return atom;
 }
 bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_ATOM_NAME_LEN+1]) {
@@ -177,38 +178,59 @@ xcb_get_property_reply_t* get_property_reply(
 	}
 	return prop_r;
 }
-void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const atom_pack * const atoms,  XY_Dimensions * const result) {
+void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const uint32_t vdesktop_id, const atom_pack * const atoms,  XY_Dimensions * const result) {
 	xcb_query_tree_cookie_t qtc;
 	xcb_query_tree_reply_t *qtr;
 	xcb_generic_error_t *err;
 
-	xcb_get_property_reply_t *query_atom_reply;
-	if ((query_atom_reply = get_property_reply(conn, win,
-		atoms->query_atom.id,
-		XCB_ATOM_ATOM,
-		(strlen(atoms->query_atom.name)*8)/32,	// 8b --> 32b
-		0
-	))) {
-		uint32_t *query_atom_value = (uint32_t*){xcb_get_property_value(query_atom_reply)};
-		if (*(xcb_atom_t*)query_atom_value == atoms->match_atom.id) {
-			xcb_get_property_reply_t *strut_partial_reply;
-			if ((strut_partial_reply = get_property_reply(conn, win,
-				atoms->key_atom.id,
-				XCB_ATOM_CARDINAL,
-				12*4,	// CARDINAL[12], each 32bit.
-				1
-			))) {
-				uint32_t *valuee = (uint32_t*){xcb_get_property_value(strut_partial_reply)};
-				result->width += valuee[0] + valuee[1];		// Left + Right.
-				result->height += valuee[2] + valuee[3];	// Top + Bottom.
-				p_delete(&strut_partial_reply);
-			} else {
-				fprintf(stderr, "Failed to query dock window's strut dimensions.\n");
+
+	if (atoms->wm_desktop_atom.id) {	// Do not check windows that are reported to not be on the user's current virtual desktop:
+		xcb_get_property_reply_t *wm_desktop_reply;
+		if ((wm_desktop_reply = get_property_reply(conn, win,
+			atoms->wm_desktop_atom.id,
+			XCB_ATOM_CARDINAL,
+			4,	// 8b --> 32b
+			0	// Silent.
+		))) {
+			uint32_t *wm_desktop_atom_value = (uint32_t*){xcb_get_property_value(wm_desktop_reply)};
+			if (*(xcb_atom_t*)wm_desktop_atom_value != vdesktop_id) {	// Reported not on current virtual desktop.
+				p_delete(&wm_desktop_reply);
+				return;	// Do not count this window or its children.
+			}
+			p_delete(&wm_desktop_reply);
+		}
+	}
+
+
+	{	// Aggregate strut dimensions if present on the window:
+		xcb_get_property_reply_t *query_atom_reply;
+		if ((query_atom_reply = get_property_reply(conn, win,
+			atoms->query_atom.id,
+			XCB_ATOM_ATOM,
+			(strlen(atoms->query_atom.name)*8)/32,	// 8b --> 32b
+			0	// Silent.
+		))) {
+			uint32_t *query_atom_value = (uint32_t*){xcb_get_property_value(query_atom_reply)};
+			if (*(xcb_atom_t*)query_atom_value == atoms->match_atom.id) {
+				xcb_get_property_reply_t *strut_partial_reply;
+				if ((strut_partial_reply = get_property_reply(conn, win,
+					atoms->key_atom.id,
+					XCB_ATOM_CARDINAL,
+					12*4,	// CARDINAL[12], each 32bit.
+					1
+				))) {
+					uint32_t *valuee = (uint32_t*){xcb_get_property_value(strut_partial_reply)};
+					result->width += valuee[0] + valuee[1];		// Left + Right.
+					result->height += valuee[2] + valuee[3];	// Top + Bottom.
+					p_delete(&strut_partial_reply);
+				} else {
+					fprintf(stderr, "Failed to query dock window's strut dimensions.\n");
+				}
+				p_delete(&query_atom_reply);
+				return;	// Assuming any child window struts would be included in the parent's.
 			}
 			p_delete(&query_atom_reply);
-			return;	// Assuming any child window struts would be included in the parent's.
 		}
-		p_delete(&query_atom_reply);
 	}
 
 
@@ -223,7 +245,7 @@ void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const 
 
 	xcb_window_t *children = xcb_query_tree_children(qtr);
 	for (int i = 0; i < xcb_query_tree_children_length(qtr); i++) {
-		get_dock_size_recursively(conn, &children[i], atoms, result);
+		get_dock_size_recursively(conn, &children[i], vdesktop_id, atoms, result);
 	}
 
 	free(qtr);
@@ -232,6 +254,7 @@ void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const 
 
 void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * const result) {
 	uint32_t virtual_desktop_id = 0;
+	bool has_current_desktop = false;
 	const atom_pair Net_Current_Desktop = {
 		.name = "_NET_CURRENT_DESKTOP",
 		.id = get_atom(conn, "_NET_CURRENT_DESKTOP")
@@ -239,14 +262,15 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 	{
 		xcb_get_property_reply_t *current_desktop_reply;
 		if ((current_desktop_reply = get_property_reply(conn, win,
-			Net_Current_Desktop.id, XCB_ATOM_CARDINAL, 4*4,
-			0
+			Net_Current_Desktop.id, XCB_ATOM_CARDINAL, 4,
+			0	// Silent.
 		))) {
 			uint32_t *current_desktop_value = (uint32_t*){xcb_get_property_value(current_desktop_reply)};
 			// Should probably add data validation.
 			virtual_desktop_id = *current_desktop_value;
 			p_delete(&current_desktop_reply);
-			return;
+			has_current_desktop = true;
+			if (verbosity >= 3) printf("Calculating scale dimensions for current virtual desktop (%u).\n", virtual_desktop_id);
 		}
 	}
 
@@ -262,7 +286,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 		xcb_get_property_reply_t *workarea_atom_reply;
 		if ((workarea_atom_reply = get_property_reply(conn, win,
 			Net_Workarea.id, XCB_ATOM_CARDINAL, 4*4,
-			0
+			0	// Silent.
 		))) {
 			printf("Using \"%s\". This functionality is untested! Please report bugs.\n", Net_Workarea.name);
 			uint32_t **workarea_atom_value = (uint32_t**){xcb_get_property_value(workarea_atom_reply)};
@@ -360,9 +384,13 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 			.id = get_atom(conn, "_NET_WM_WINDOW_TYPE"),
 		},
 		.match_atom = Net_Wm_Window_Type_Dock,
-		.key_atom = has_strut ? Net_Wm_Strut : Net_Wm_Strut_Partial
+		.key_atom = has_strut ? Net_Wm_Strut : Net_Wm_Strut_Partial,
+		.wm_desktop_atom = {
+			.name = "_NET_WM_DESKTOP",
+			.id = has_current_desktop ? get_atom(conn, "_NET_WM_DESKTOP") : 0
+		}
 	};
-	get_dock_size_recursively(conn, win, &atoms, result);
+	get_dock_size_recursively(conn, win, virtual_desktop_id, &atoms, result);
 }
 
 
