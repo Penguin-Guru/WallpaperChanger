@@ -51,6 +51,7 @@ bool print_rows(const char* path) {
 void free_row(row_t *r) {
 	if (!r) return;
 	if (r->file) free(r->file);
+	if (r->monitor_name) free(r->monitor_name);
 	free(r);
 }
 void free_rows(rows_t *target) {
@@ -118,34 +119,50 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 		// Add to token array if first or different from previous.
 		if (token_len == 0 || strcmp(buff, token[token_len-1])) strncpy(token[token_len++], buff, MAX_COLUMN_LENGTH);
 	}
-	if (token_len < 2 || token_len > sizeof(Column_Names)/sizeof(Column_Names[0])) {
+	if (token_len < 2 || token_len > NUM_COLUMNS) {
 		// No warning for empty lines.
 		if (token_len > 0) fprintf(stderr, "Invalid number of columns for row #%lu. Columns detected: %hu.\n", row_num, token_len);
 		return NULL;
 	}
 
-	if (p_criteria == NULL || (token_len == 3)) {	// The only column that may be missing from a valid entry is the tags.
+	if (p_criteria == NULL || (token_len == NUM_COLUMNS)) {	// The only column that may be missing from a valid entry is the tags.
 		// Use tags_t as bitmask to check tags.
 		tags_t tags;
 		if (
-			(!p_criteria || (*p_criteria & (tags = get_tag_mask(token[2]))))	// Positive match criteria.
+			(!p_criteria || (*p_criteria & (tags = get_tag_mask(token[3]))))	// Positive match criteria.
 			&& ! (n_criteria && (*n_criteria & tags))		// Negative match criteria.
 		) {
 			row_t *row = (row_t*)malloc(sizeof(row_t));	// Why does cast need to be a pointer?
+
+			// Timestamp:
+			// Assuming timestamp is present and appears first in parsing order.
 			if (strnlen(token[0], MAX_TIMESTAMP_LENGTH) == MAX_TIMESTAMP_LENGTH) {
 				fprintf(stderr, "Timestamp in database entry exceeds hard-coded maximum.\n");
 				row->ts[0] = '\0';
 			} else {
 				strcpy(row->ts, token[0]);
 			}
-			const size_t len = strlen(token[1]);
-			if (len) {
-				row->file = (file_path_t)malloc(len+1);	// +1 for terminating null?
-				strcpy(row->file, token[1]);
+
+			size_t len;
+
+			// Monitor name:
+			if (!(len = strlen(token[1]))) {
+				fprintf(stderr, "Monitor name field in database has zero length.\n");
 			} else {
+				row->monitor_name = (monitor_name_t)malloc(len+1);	// +1 for termination.
+				strcpy(row->monitor_name, token[1]);
+			}
+
+			// File path:
+			// Assume file path is present and appears third or second in parsing order.
+			if (!(len = strlen(token[2]))) {
 				// Load entries with empty file paths, but warn user.
 				fprintf(stderr, "Invalid length for file path in database entry!\n");
+			} else {
+				row->file = (file_path_t)malloc(len+1);	// +1 for terminating null?
+				strcpy(row->file, token[2]);
 			}
+
 			row->tags = tags;
 			return row;
 		}
@@ -313,8 +330,10 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	gen_tag_string(tag_string, new_entry->tags);
 
 	if (created_new_file) {
-		if (fprintf(f, "%s%c%s%c%s\n",	// No need for end-of-file?
+		if (fprintf(f, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
 			new_entry->ts,
+			COLUMN_DELIM,
+			new_entry->monitor_name,
 			COLUMN_DELIM,
 			new_entry->file,
 			COLUMN_DELIM,
@@ -356,16 +375,20 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 			if (row->tags == current_mask) {
 				// Current is this entry's only tag.
 				row->tags = '\0';
-				status = fprintf(tmp, "%s%c%s\n",	// No need for end-of-file?
+				status = fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
 					row->ts,
+					COLUMN_DELIM,
+					row->monitor_name,
 					COLUMN_DELIM,
 					row->file
 					// Tag field is not necessary.
 				);
 			} else {
 				gen_tag_string(tag_string, row->tags & (~current_mask));
-				status = fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
+				status = fprintf(tmp, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
 					row->ts,
+					COLUMN_DELIM,
+					row->monitor_name,
 					COLUMN_DELIM,
 					row->file,
 					COLUMN_DELIM,
@@ -385,8 +408,10 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 		}
 	}
 	free(string);
-	if (fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
+	if (fprintf(tmp, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
 		new_entry->ts,
+		COLUMN_DELIM,
+		new_entry->monitor_name,
 		COLUMN_DELIM,
 		new_entry->file,
 		COLUMN_DELIM,
@@ -501,6 +526,8 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 			gen_tag_string(tag_string, result);
 			fprintf(tmp, "%s%c%s%c%s\n",
 				row->ts,
+				COLUMN_DELIM,
+				row->monitor_name,
 				COLUMN_DELIM,
 				row->file,
 				COLUMN_DELIM,

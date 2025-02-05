@@ -1,6 +1,5 @@
 #include "stddef.h"
 #include "parameters.h"
-//#include "assert.h"
 
 
 bool handle_set(const arg_list_t * const al);
@@ -11,11 +10,13 @@ bool handle_fav_current(const arg_list_t * const al);
 bool handle_delete_current(const arg_list_t * const al);
 
 bool handle_print(const arg_list_t * const al);
+bool handle_list_monitors(const arg_list_t * const al);
 
 bool handle_database_path(const arg_list_t * const al);
 bool handle_wallpaper_path(const arg_list_t * const al);
 bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const al);
 bool handle_scale_for_wm(const arg_list_t * const al);
+bool handle_target_monitor(const arg_list_t * const al);
 
 bool handle_config_file(const arg_list_t * const al);
 bool handle_verbosity(const arg_list_t * const al);
@@ -23,6 +24,11 @@ bool handle_print_help(const arg_list_t * const al);
 
 
 parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
+
+	//
+	// Run type parameters:
+	//
+
 	{
 		.handler_set = (handler_set_t){
 			.name		= "set",
@@ -39,6 +45,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 1
 		},
 		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
 		.previous_load = NONE
 	},
 	{
@@ -57,6 +64,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
 		.previous_load = NONE
 	},
 	{
@@ -75,9 +83,9 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
 		.previous_load = NONE
 	},
-
 
 	{
 		.handler_set = (handler_set_t){
@@ -95,6 +103,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = RUN,
+		.requirements = COMPONENT_DB,
 		.previous_load = NONE
 	},
 	{
@@ -113,6 +122,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
 		.previous_load = NONE
 	},
 
@@ -132,9 +142,32 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = RUN,
+		.requirements = COMPONENT_DB,
+		.previous_load = NONE
+	},
+	{
+		.handler_set = (handler_set_t){
+			.name		= "list_monitors",
+			.description	= "List connected outputs reported by the display server.",
+			.fn		= handle_list_monitors,
+			.arg_list	= 0	// Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag	= "list-monitors",
+			.short_flag	= "lm"
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min		= 0,
+			.max		= 0
+		},
+		.type = RUN,
+		.requirements = COMPONENT_X11,
 		.previous_load = NONE
 	},
 
+	//
+	// Init type parameters:
+	//
 
 	{
 		.handler_set = (handler_set_t){
@@ -151,7 +184,8 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.min		= 1,
 			.max		= 1
 		},
-		.type = RUN,
+		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 	{
@@ -170,6 +204,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 1
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 	{
@@ -188,6 +223,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 1
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 	{
@@ -209,6 +245,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 	{
@@ -230,6 +267,26 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 1
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
+		.previous_load = NONE
+	},
+	{
+		.handler_set = (handler_set_t){
+			.name		= "target_monitor",
+			.description	= "Specify UTF-8 name of monitor to target.",
+			.fn		= handle_target_monitor,
+			.arg_list	= 0	// Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag	= "monitor",
+			.short_flag	= "m"
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min		= 1,
+			.max		= 1
+		},
+		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 	{
@@ -241,13 +298,14 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		},
 		.flag_pair = (flag_pair_t){
 			.long_flag	= "verbosity",
-			.short_flag	= NULL
+			.short_flag	= "v"
 		},
 		.arg_params = (param_arg_parameters_t){
 			.min		= 1,
 			.max		= 1
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
 
@@ -267,6 +325,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.max		= 0
 		},
 		.type = INIT,
+		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	}
 };

@@ -9,6 +9,7 @@ declare BuildDir="$WD/build"
 declare -a system_libs=(
 	xcb
 	xcb-image
+	xcb-randr
 	xcb-util
 	xcb-errors
 	freeimage

@@ -22,13 +22,21 @@
 #include "init.h"
 #include "image.h"
 #include "flatfiledb.h"
-#include "graphics.h"
+
+
+extern app_components_t app_components;
 
 
 void clean_up() {
 	if (s_wallpapers) {	// Depends on run mode.
 		for (size_t i = 0; i < s_wallpapers_ct; i++) free(s_wallpapers[i]);
 		free(s_wallpapers);
+	}
+	if (s_monitors) {
+		for (uint_fast16_t i = 0; i < sizeof(s_monitors)/sizeof(s_monitors[0]); i++) {
+			free(s_monitors[i].name);
+		}
+		free(s_monitors);
 	}
 	if (data_file_path) free(data_file_path);	// Should always be true.
 	if (data_directory) free(data_directory);	// Almost always true.
@@ -48,11 +56,38 @@ bool is_text_true(const char  * const string) {
 	return false;
 }
 
+static inline uint32_t get_monitor_id_from_name(const char * const name) {	// Returns xcb_randr_output_t.
+	if (!s_num_monitors) s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
+	assert(s_num_monitors > 0);
+	for (uint_fast16_t i = 0; i < s_num_monitors; i++) {
+		// Hopefully strcoll catches any signed mismatches, otherwise use strcmp.
+		if (strcoll((char*)(s_monitors[i].name), name)) continue;
+		return s_monitors[i].id;
+	}
+	fprintf(stderr, "Failed to match monitor name: \"%s\"\n", name);
+	return 0;
+}
+static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Receives xcb_randr_output_t.
+	if (!s_num_monitors) s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
+	assert(s_num_monitors > 0);
+	for (uint_fast16_t i = 0; i < s_num_monitors; i++) {
+		if (s_monitors[i].id == id) return (char*)(s_monitors[i].name);
+	}
+	fprintf(stderr, "Failed to match monitor I.D.: %u\n", s_target_monitor_id);
+	return 0;
+}
+
 
 /* Misc. intermediary functions: */
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
-	if (!set_wallpaper(wallpaper_file_path)) {
+	// To do: use active monitor as default.
+	if (!s_target_monitor_id) {
+		fprintf(stderr, "No target monitor. Aborting.\n");
+		return false;
+	}
+
+	if (!set_wallpaper(wallpaper_file_path, s_target_monitor_id)) {
 		fprintf(stderr, "Failed to set new wallpaper.\n");
 		return false;
 	}
@@ -63,8 +98,10 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		fprintf(stderr, "Invalid length for file path.\n");
 		return false;
 	}
+	new_entry.monitor_name = get_monitor_name_from_id(s_target_monitor_id);
 	new_entry.file = wallpaper_file_path;
 	new_entry.tags = tags | encode_tag(TAG_CURRENT);	// Make sure it's tagged as current.
+	assert(data_file_path);
 	if (!append_new_current(data_file_path, &new_entry)) {
 		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
 		return false;
@@ -73,6 +110,8 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 }
 
 const file_path_t get_start_of_relative_path(const file_path_t full_path) {
+	assert(full_path);
+	assert(full_path[0]);
 	// Relative paths are used to preserve functionality in the event that a user moves their root wallpaper directory.
 	//const char *start_of_relative_path = strstr(full_path, "/" DEFAULT_WALLPAPER_DIR_NAME "/");
 	char *start_of_relative_path = strstr(full_path, "/" DEFAULT_WALLPAPER_DIR_NAME "/");
@@ -549,6 +588,21 @@ bool handle_print(const arg_list_t * const al) {
 	free(img);
 	return true;
 }
+bool handle_list_monitors(const arg_list_t * const al) {
+	assert(!al);
+	assert(s_monitors);
+	for (uint_fast16_t i = 0; i < sizeof(*s_monitors)/sizeof(s_monitors[0]); i++) {
+		printf(
+			"%-*s\n"	// I don't know of a format specifier for unsigned char*.
+				"\t Width: %*u\n"
+				"\tHeight: %*u\n"
+			, 10, (char*)(s_monitors[i].name)
+			, 4, s_monitors[i].width
+			, 4, s_monitors[i].height
+		);
+	}
+	return true;
+}
 
 /*/
  * Above are run modes.
@@ -606,36 +660,81 @@ bool handle_scale_for_wm(const arg_list_t * const al) {
 	if (verbosity > 1) printf("User set: scale_for_wm = %s\n", scale_for_wm ? "true" : "false");
 	return true;
 }
+bool handle_target_monitor(const arg_list_t * const al) {
+	assert(al);
+	assert(al->ct == 1);
+	assert(al->args[0]);
+	if ((s_target_monitor_id = get_monitor_id_from_name(al->args[0]))) return true;
+	return false;
+}
 
 /* Main: */
 
+static inline bool load_application_component(const enum AppComponent component) {
+	switch (component) {
+		case COMPONENT_NONE :
+			break;
+		case COMPONENT_X11 :
+			atexit(graphics_clean_up);	// Close connection to display server on return.
+			if (!(s_monitors = get_monitor_info())) {
+				fprintf(stderr, "Failed to get_monitor_info.\n");
+				return false;
+			}
+			assert(s_monitors);
+			s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
+			if (
+				!s_target_monitor_id
+				&& s_num_monitors == 1
+			) {
+				s_target_monitor_id = s_monitors[0].id;
+				if (verbosity >= 3) printf("Defaulting to the only monitor detected: \"%s\"\n", s_monitors[0].name);
+			}
+			break;
+		case COMPONENT_DB :
+			if (!data_file_path) {	// Fall back on default database path.
+				if (!data_directory) data_directory = get_xdg_data_home();	// Currently always true.
+				//size_t len = data_directory ? strlen(data_directory) : 0;
+				size_t len;
+				if (!data_directory || (len = strlen(data_directory)) == 0) {
+					fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
+					//if (data_directory) free(data_directory);
+					clean_up();
+					return false;
+				}
+				// Should probably check to confirm that adding to len won't exceed max.
+				len += 1+sizeof(DEFAULT_DATA_FILE_NAME);	// +1 for '/'.
+				data_file_path = (file_path_t)malloc(len+1);
+				snprintf(data_file_path, len, "%s%s\0", data_directory, "/" DEFAULT_DATA_FILE_NAME);
+				//free(data_directory);
+			}
+			break;
+		default:
+			fprintf(stderr, "Unknown AppComponent: %d\n", component);
+	}
+	return true;
+}
 int main(int argc, char** argv) {
 	atexit(clean_up);
 
+
 	// Note: init functions do not currently have access to data_file_path.
-	if (! init(argc, argv)) return 1;	// Parse C.L.I. and config file(s).
+	if (! init(argc, argv)) return 2;	// Parse C.L.I. and config file(s).
 
 	if (run_mode_params.ct == 0) {	// Has the user specified something to do?
 		fprintf(stderr, "No action specified.\n");
-		return 1;
+		return 0;
 	}
 
 
-	if (!data_file_path) {	// Fall back on default database path.
-		if (!data_directory) data_directory = get_xdg_data_home();	// Currently always true.
-		//size_t len = data_directory ? strlen(data_directory) : 0;
-		size_t len;
-		if (!data_directory || (len = strlen(data_directory)) == 0) {
-			fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
-			//if (data_directory) free(data_directory);
-			clean_up();
-			return 1;
+	// Application components are loaded after init, so parameters can affect their load process.
+	// 	This means Init type parameter handlers can not reference their results (e.g. monitor info).
+	if (app_components) {
+		for (app_components_t mask_it = 1; app_components >= mask_it; mask_it <<= 1) {
+			if (!load_application_component(app_components & mask_it)) {
+				fprintf(stderr, "Failed to load application component: %d\n", app_components & mask_it);
+				return 3;
+			}
 		}
-		// Should probably check to confirm that adding to len won't exceed max.
-		len += 1+sizeof(DEFAULT_DATA_FILE_NAME);	// +1 for '/'.
-		data_file_path = (file_path_t)malloc(len+1);
-		snprintf(data_file_path, len, "%s%s\0", data_directory, "/" DEFAULT_DATA_FILE_NAME);
-		//free(data_directory);
 	}
 
 

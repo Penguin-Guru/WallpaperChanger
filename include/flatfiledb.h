@@ -22,6 +22,7 @@
 
 static const char Column_Names[][MAX_COLUMN_TITLE_LENGTH] = {	// Columns must be in (descending) order of appearance (when reading/writing).
 	"timestamp",
+	"monitor",
 	"file_path",
 	"tags"
 };
@@ -56,6 +57,7 @@ static const uint_fast8_t Max_Tag_String_Len = sizeof(tags_known)/sizeof(tags_kn
 //using tags = Tag[];
 typedef struct row_t {
 	timestamp_t ts; 
+	char *monitor_name;
 	file_path_t file;	// Not flexible anymore. Appears in file order.
 	tags_t tags;
 	//file_path_t file;	// Flexible-- must be at end of struct.

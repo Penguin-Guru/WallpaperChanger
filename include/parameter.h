@@ -2,7 +2,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "argument.h"
+
 
 /*/
  * Terminology (based on a few web references):
@@ -60,6 +62,23 @@ enum ParamType {
 	RUN
 };
 
+enum AppComponent {	// Bitmask of known components that may be loaded as needed.
+	// Numerics must correspond with value of next highest binary digit, to avoid conflation.
+	// Remember to update APP_COMPONENT_CT (below).
+	COMPONENT_NONE	= 0b00000000,	// 0
+	COMPONENT_X11	= 0b00000001,	// 1
+	COMPONENT_DB	= 0b00000010	// 2
+	// 4
+	// 8
+	// 16
+	// 32
+	// 64
+	// 128
+} __attribute__ ((__packed__));
+#define APP_COMPONENT_CT 3	// Must match number of entries in AppComponent (above).
+typedef uint_fast8_t app_components_t;	// Bitmask.
+static_assert(APP_COMPONENT_CT <= 8*sizeof(app_components_t), "Data type of app_components_t is not big enough.");
+
 enum LoadSource {
 	NONE = 0,
 	CLI,
@@ -75,6 +94,7 @@ typedef struct {
 	const flag_pair_t flag_pair;
 	const param_arg_parameters_t arg_params;
 	enum ParamType type;
+	const app_components_t requirements;
 	enum LoadSource previous_load;
 } parameter_t;	// Parameter definition. param_def_t
 

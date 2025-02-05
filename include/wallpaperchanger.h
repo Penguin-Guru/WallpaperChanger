@@ -3,10 +3,12 @@
 #include <stdbool.h>
 #include <stddef.h>	// For size_t.
 #include "libxdgbasedir.h"
+#include "graphics.h"	// For monitor_info.
 #include "util.h"
 
 #define DEFAULT_DATA_FILE_NAME "wallpapers.log"
 #define DEFAULT_WALLPAPER_DIR_NAME "wallpapers"
+
 
 
 static file_path_t data_directory = NULL;
@@ -17,6 +19,12 @@ static file_path_t
 ;
 
 bool scale_for_wm = true;	// Scale wallpapers based on static, foreground windows.
+
+
+
+static monitor_info * s_monitors;
+static uint32_t s_target_monitor_id = 0;	// xcb_randr_output_t
+static uint_fast16_t s_num_monitors = 0;
 
 // Cache used by some functions:
 static size_t s_wallpapers_ct = 0;

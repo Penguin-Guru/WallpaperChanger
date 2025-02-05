@@ -9,6 +9,7 @@
 
 handler_set_list_t run_mode_params;
 uint_fast8_t num_config_files_loaded = 0;
+app_components_t app_components = COMPONENT_NONE;
 
 
 bool handle_config_file(const arg_list_t * const al) {
@@ -72,8 +73,10 @@ bool register_param(parameter_t *p, const arg_list_t * const al, const enum Load
 	switch (p->type) {
 		case RUN :
 			list = &run_mode_params;
+			if ((app_components & p->requirements) != p->requirements) app_components |= p->requirements;
 			break;
 		case INIT :
+			assert(p->requirements == COMPONENT_NONE);
 			if (load_source == CONFIG_FILE && p->previous_load == CLI) {
 				if (verbosity) printf("C.L.I. parameter over-riding config setting: \"%s\"\n", p->handler_set.name);
 				return true;	// This is not a failure case.
