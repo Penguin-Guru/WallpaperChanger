@@ -483,8 +483,8 @@ bool init_xcb() {
 
 
 //monitor_info* const get_monitor_info(xcb_connection_t *conn, xcb_window_t win) {
-monitor_info* const get_monitor_info() {
-	if (!(conn || init_xcb())) return false;
+monitor_list const get_monitor_info() {
+	if (!(conn || init_xcb())) return (monitor_list){NULL};
 	assert(screen);
 
 	xcb_randr_get_screen_resources_current_reply_t *srcr;
@@ -493,18 +493,21 @@ monitor_info* const get_monitor_info() {
 		NULL
 	))) {
 		fprintf(stderr, "Failed to query monitor info with RandR extension\n");
-		return NULL;
+		return (monitor_list){NULL};
 	}
 
 	xcb_timestamp_t timestamp = srcr->config_timestamp;
-	const int len = xcb_randr_get_screen_resources_current_outputs_length(srcr) /4; // 32b --> 8b.
-	assert(len > 0);
-	if (len != 1) fprintf(stderr,
+	const int len = xcb_randr_get_screen_resources_current_outputs_length(srcr);
+	assert(len >= 4);
+	if (len != 4) fprintf(stderr,
 		"Warning! This program has not been tested with multiple monitors.\n"
 		"\tIt will probably not work as intended, if at all.\n"
 	);
 	xcb_randr_output_t *randr_outputs = xcb_randr_get_screen_resources_current_outputs(srcr);
-	monitor_info * const monitors = calloc(len, sizeof(monitor_info));
+	monitor_list ret = {
+		.monitor = calloc(len, sizeof(monitor_info)),
+		.ct = 0
+	};
 	for (int i = 0; i < len; i++) {
 		xcb_randr_get_output_info_reply_t *output;
 		if (!(output = xcb_randr_get_output_info_reply(conn,
@@ -538,12 +541,12 @@ monitor_info* const get_monitor_info() {
 				fprintf(stderr, "RandR reported unknown rotation state: %u\n", crtc->rotation);
 				free(crtc);
 				free(output);
-				free(monitors);
+				free(ret.monitor);
 				free(srcr);
-				return NULL;
+				return (monitor_list){NULL};
 		}
 
-		monitors[i] = (monitor_info){
+		ret.monitor[ret.ct++] = (monitor_info){
 			.id = randr_outputs[i],
 			.name = xcb_randr_get_output_info_name(output),
 			.width = crtc->width,
@@ -556,9 +559,9 @@ monitor_info* const get_monitor_info() {
 					"\t Width: %*u\n"
 					"\tHeight: %*u\n"
 				, i
-				, monitors[i].name
-				, 4, monitors[i].width
-				, 4, monitors[i].height
+				, ret.monitor[i].name
+				, 4, ret.monitor[i].width
+				, 4, ret.monitor[i].height
 			);
 		}
 		free(crtc);
@@ -566,7 +569,7 @@ monitor_info* const get_monitor_info() {
 	}
 
 	free(srcr);
-	return monitors;
+	return ret;
 }
 
 /*uint32_t get_active_monitor() {

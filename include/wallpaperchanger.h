@@ -22,9 +22,8 @@ bool scale_for_wm = true;	// Scale wallpapers based on static, foreground window
 
 
 
-static monitor_info * s_monitors;
+static monitor_list s_monitors;
 static uint32_t s_target_monitor_id = 0;	// xcb_randr_output_t
-static uint_fast16_t s_num_monitors = 0;
 
 // Cache used by some functions:
 static size_t s_wallpapers_ct = 0;

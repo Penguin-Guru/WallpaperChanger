@@ -285,7 +285,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.min		= 1,
 			.max		= 1
 		},
-		.type = INIT,
+		.type = RUN,	// This should be INIT. Fix later!
 		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},

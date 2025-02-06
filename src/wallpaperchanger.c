@@ -32,12 +32,13 @@ void clean_up() {
 		for (size_t i = 0; i < s_wallpapers_ct; i++) free(s_wallpapers[i]);
 		free(s_wallpapers);
 	}
-	if (s_monitors) {
-		for (uint_fast16_t i = 0; i < sizeof(s_monitors)/sizeof(s_monitors[0]); i++) {
-			free(s_monitors[i].name);
+	if (s_monitors.ct) {
+		for (uint_fast16_t i = 0; i < s_monitors.ct; i--) {
+			//free(s_monitors.monitor[i].name);
+			//free(s_monitors.monitor[i]);
+			free(s_monitors.monitor + i);
 		}
-		free(s_monitors);
-	}
+	} else assert(!s_monitors.monitor);
 	if (data_file_path) free(data_file_path);	// Should always be true.
 	if (data_directory) free(data_directory);	// Almost always true.
 	if (wallpaper_path) free(wallpaper_path);	// Depends on run mode.
@@ -57,21 +58,19 @@ bool is_text_true(const char  * const string) {
 }
 
 static inline uint32_t get_monitor_id_from_name(const char * const name) {	// Returns xcb_randr_output_t.
-	if (!s_num_monitors) s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
-	assert(s_num_monitors > 0);
-	for (uint_fast16_t i = 0; i < s_num_monitors; i++) {
+	assert(s_monitors.ct > 0);
+	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		// Hopefully strcoll catches any signed mismatches, otherwise use strcmp.
-		if (strcoll((char*)(s_monitors[i].name), name)) continue;
-		return s_monitors[i].id;
+		if (strcoll((char*)(s_monitors.monitor[i].name), name)) continue;
+		return s_monitors.monitor[i].id;
 	}
 	fprintf(stderr, "Failed to match monitor name: \"%s\"\n", name);
 	return 0;
 }
 static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Receives xcb_randr_output_t.
-	if (!s_num_monitors) s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
-	assert(s_num_monitors > 0);
-	for (uint_fast16_t i = 0; i < s_num_monitors; i++) {
-		if (s_monitors[i].id == id) return (char*)(s_monitors[i].name);
+	assert(s_monitors.ct > 0);
+	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
+		if (s_monitors.monitor[i].id == id) return (char*)(s_monitors.monitor[i].name);
 	}
 	fprintf(stderr, "Failed to match monitor I.D.: %u\n", s_target_monitor_id);
 	return 0;
@@ -590,15 +589,15 @@ bool handle_print(const arg_list_t * const al) {
 }
 bool handle_list_monitors(const arg_list_t * const al) {
 	assert(!al);
-	assert(s_monitors);
-	for (uint_fast16_t i = 0; i < sizeof(*s_monitors)/sizeof(s_monitors[0]); i++) {
+	assert(s_monitors.ct > 0);
+	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		printf(
 			"%-*s\n"	// I don't know of a format specifier for unsigned char*.
 				"\t Width: %*u\n"
 				"\tHeight: %*u\n"
-			, 10, (char*)(s_monitors[i].name)
-			, 4, s_monitors[i].width
-			, 4, s_monitors[i].height
+			, 10, (char*)(s_monitors.monitor[i].name)
+			, 4, s_monitors.monitor[i].width
+			, 4, s_monitors.monitor[i].height
 		);
 	}
 	return true;
@@ -676,18 +675,18 @@ static inline bool load_application_component(const enum AppComponent component)
 			break;
 		case COMPONENT_X11 :
 			atexit(graphics_clean_up);	// Close connection to display server on return.
-			if (!(s_monitors = get_monitor_info())) {
+			s_monitors = get_monitor_info();
+			if (!s_monitors.ct) {
 				fprintf(stderr, "Failed to get_monitor_info.\n");
 				return false;
 			}
-			assert(s_monitors);
-			s_num_monitors = sizeof(*s_monitors)/sizeof(s_monitors[0]);
+			assert(s_monitors.monitor);
 			if (
 				!s_target_monitor_id
-				&& s_num_monitors == 1
+				&& s_monitors.ct == 1
 			) {
-				s_target_monitor_id = s_monitors[0].id;
-				if (verbosity >= 3) printf("Defaulting to the only monitor detected: \"%s\"\n", s_monitors[0].name);
+				s_target_monitor_id = s_monitors.monitor[0].id;
+				if (verbosity >= 3) printf("Defaulting to the only monitor detected: \"%s\"\n", s_monitors.monitor[0].name);
 			}
 			break;
 		case COMPONENT_DB :
