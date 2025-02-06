@@ -80,12 +80,6 @@ static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Rece
 /* Misc. intermediary functions: */
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
-	// To do: use active monitor as default.
-	if (!s_target_monitor_id) {
-		fprintf(stderr, "No target monitor. Aborting.\n");
-		return false;
-	}
-
 	if (!set_wallpaper(wallpaper_file_path, s_target_monitor_id)) {
 		fprintf(stderr, "Failed to set new wallpaper.\n");
 		return false;
@@ -663,7 +657,7 @@ bool handle_target_monitor(const arg_list_t * const al) {
 	assert(al);
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if ((s_target_monitor_id = get_monitor_id_from_name(al->args[0]))) return true;
+	s_target_monitor_name = al->args[0];
 	return false;
 }
 
@@ -681,13 +675,31 @@ static inline bool load_application_component(const enum AppComponent component)
 				return false;
 			}
 			assert(s_monitors.monitor);
-			if (
-				!s_target_monitor_id
-				&& s_monitors.ct == 1
-			) {
+
+			//
+			// Make sure we know which monitor to operate on:
+			//
+			/*if (s_target_monitor_id) {
+				// Validate user specified monitor I.D.
+				if (!(s_target_monitor_name = get_monitor_name_from_id(s_target_monitor_id))) {
+					fprintf(stderr, "Invalid monitor/output I.D.: %d\n", s_target_monitor_id);
+					return false;
+				}
+			} else*/
+			if (s_target_monitor_name) {
+				if (!(s_target_monitor_id = get_monitor_id_from_name(s_target_monitor_name))) {
+					fprintf(stderr, "Specified monitor name does not exist: \"%s\"\n", s_target_monitor_name);
+					return false;
+				}
+			} else if (s_monitors.ct == 1) {
 				s_target_monitor_id = s_monitors.monitor[0].id;
 				if (verbosity >= 3) printf("Defaulting to the only monitor detected: \"%s\"\n", s_monitors.monitor[0].name);
+			} else {
+				// To do: use active monitor as default.
+				fprintf(stderr, "No target monitor. Aborting.\n");
+				return false;
 			}
+
 			break;
 		case COMPONENT_DB :
 			if (!data_file_path) {	// Fall back on default database path.
@@ -743,5 +755,5 @@ int main(int argc, char** argv) {
 		if (! (status = hs->fn(hs->arg_list))) break;	// Break on error (status=false).
 	}
 
-	return status ? 1 : 0;
+	return status ? 0 : 1;
 };

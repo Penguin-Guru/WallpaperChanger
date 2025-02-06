@@ -51,7 +51,7 @@ bool handle_print_help(const arg_list_t * const al) {	// Bool return only due to
 			printf("\t\tShort flag: -%s\n", flags->short_flag);
 	}
 	printf("\n");
-	exit(0);
+	exit(0);	// EXIT_SUCCESS.
 }
 
 void free_params(handler_set_list_t *list) {
