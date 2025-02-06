@@ -66,7 +66,7 @@ void free_rows(rows_t *target) {
 tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	tags_t ret = 0;
 
-	char writable_column_string[strnlen(column_string, MAX_COLUMN_LENGTH)];
+	char writable_column_string[strnlen(column_string, MAX_COLUMN_LENGTH)+1];
 	strcpy(writable_column_string, column_string);
 	char *token[MAX_COLUMN_LENGTH], *buff = NULL, *saveptr;
 	token_length_t token_len = 0;
