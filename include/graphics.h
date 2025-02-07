@@ -6,9 +6,9 @@
 
 typedef struct monitor_info {
 	uint32_t id;	// xcb_randr_output_t
-	unsigned char *name;	// Do not free.
-	uint16_t width;
-	uint16_t height;
+	char *name;	// Do not free.
+	uint16_t width, height;
+	uint16_t offset_x, offset_y;
 	unsigned int rotation;	// xcb_randr_rotation_t
 } monitor_info;
 typedef struct monitor_list {
@@ -18,6 +18,6 @@ typedef struct monitor_list {
 
 
 monitor_list const get_monitor_info();
-bool set_wallpaper(const file_path_t wallpaper_file_path, const uint32_t monitor);
+bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * const monitor);
 void graphics_clean_up();
 

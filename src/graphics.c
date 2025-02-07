@@ -487,7 +487,7 @@ monitor_list const get_monitor_info() {
 	if (!(conn || init_xcb())) return (monitor_list){NULL};
 	assert(screen);
 
-	xcb_randr_get_screen_resources_current_reply_t *srcr;
+	/*xcb_randr_get_screen_resources_current_reply_t *srcr;
 	if (!(srcr = xcb_randr_get_screen_resources_current_reply(conn,
 		xcb_randr_get_screen_resources_current(conn, screen->root),
 		NULL
@@ -566,9 +566,56 @@ monitor_list const get_monitor_info() {
 		}
 		free(crtc);
 		free(output);
+	}*/
+	xcb_randr_get_monitors_reply_t *rgmr;
+	if (!(rgmr = xcb_randr_get_monitors_reply(conn,
+		xcb_randr_get_monitors(conn, screen->root, 0),
+		NULL
+	))) {
+		fprintf(stderr, "Failed to query monitor info with RandR extension\n");
+		return (monitor_list){NULL};
+	}
+	const int len = xcb_randr_get_monitors_monitors_length(rgmr);
+	//assert(len >= 4);
+	//if (len != 4) fprintf(stderr,
+	if (len != 1) fprintf(stderr,
+		"Warning! This program has not been tested with multiple monitors.\n"
+		"\tIt will probably not work as intended, if at all.\n"
+	);
+	monitor_list ret = {
+		.monitor = calloc(len, sizeof(monitor_info)),
+		.ct = 0
+	};
+	for (
+		xcb_randr_monitor_info_iterator_t m = xcb_randr_get_monitors_monitors_iterator(rgmr);
+		//m.data != xcb_randr_monitor_info_end(m).data;
+		//xcb_randr_monitor_info_end(m);
+		//m.data->name;
+		m.rem;
+		xcb_randr_monitor_info_next(&m)
+	) {
+		// Get monitor's name text:
+		xcb_get_atom_name_reply_t *anr;
+		if (!(anr = xcb_get_atom_name_reply(conn, xcb_get_atom_name(conn, m.data->name), NULL))) {
+			fprintf(stderr, "Failed to get monitor name. Aborting.\n");
+			free(ret.monitor);
+			free(rgmr);
+			return (monitor_list){NULL};
+		}
+
+		ret.monitor[ret.ct++] = (monitor_info){
+			.id = m.index,
+			.name = xcb_get_atom_name_name(anr),
+			.width = m.data->width,
+			.height = m.data->height,
+			.offset_x = m.data->x,
+			.offset_y = m.data->y
+		};
+		free(anr);
 	}
 
-	free(srcr);
+	//free(srcr);
+	free(rgmr);
 	return ret;
 }
 
@@ -795,7 +842,8 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 }
 
 
-bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
+//bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
+bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const monitor) {
 	// References:
 	// 	http://metan.ucw.cz/blog/things-i-wanted-to-know-about-libxcb.html
 	// 	https://gitlab.freedesktop.org/cairo/cairo/-/blob/8d6586f49f1c977318af7f7f9e4f24221c9122fc/src/cairo-xcb-connection-core.c#L104-144
@@ -1035,22 +1083,23 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 			0, 0,		// x, y
 			0
 		);*/
-		cookie = xcb_put_image_checked(conn,	// Load image into pixmap.
-			image_format,			// format
-			p,				// drawable
-			//screen->default_colormap,	// gc
-			gc,				// gc
-			//img->width, img->height,	// width, height
-			//img->scan_width, img->height,	// width, height
-			image->width, image->height,	// width, height
-			0, 0,				// dst_x, dst_y
-			0,				// left_pad
-			//screen->root_depth,		// depth
-			image->depth,			// depth
+		cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
+			image_format,				// format
+			p,					// drawable
+			//screen->default_colormap,		// gc
+			gc,					// gc
+			//img->width, img->height,		// width, height
+			//img->scan_width, img->height,		// width, height
+			image->width, image->height,		// width, height
+			//0, 0,					// dst_x, dst_y
+			monitor->offset_x, monitor->offset_y,	// dst_x, dst_y
+			0,					// left_pad
+			//screen->root_depth,			// depth
+			image->depth,				// depth
 			//img->data_len,			// data_len
-			image->size,			// data_len
-			//img->pixels			// data
-			image->data			// data
+			image->size,				// data_len
+			//img->pixels				// data
+			image->data				// data
 		);
 		if ((error = xcb_request_check(conn, cookie))) {
 			fprintf(stderr, "Failed to put image.\n");
@@ -1222,17 +1271,19 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 				img->pixels + (y_off * img->bytes_per_row)	// data
 			);*/
 			cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
-				image_format,					// format.
-				p,						// drawable
-				gc,						// gc
-				//img->width, rows,				// width, height
-				image->width, rows,				// width, height
-				0, image->height - rows_remaining,		// dst_x, dst_y
-				0,						// left_pad
-				screen->root_depth,				// depth
-				data_len,					// data_len
-				//img->pixels + (data_len * req_num)		// data
-				data_src					// data
+				image_format,						// format.
+				p,							// drawable
+				gc,							// gc
+				//img->width, rows,					// width, height
+				image->width, rows,					// width, height
+				//0, image->height - rows_remaining,			// dst_x, dst_y
+				monitor->offset_x,					// dst_x
+				monitor->offset_y + (image->height - rows_remaining),	// dst_y
+				0,							// left_pad
+				screen->root_depth,					// depth
+				data_len,						// data_len
+				//img->pixels + (data_len * req_num)			// data
+				data_src						// data
 			);
 			if ((error = xcb_request_check(conn, cookie))) {
 				fprintf(stderr, "Failed to put image.\n");
@@ -1295,7 +1346,7 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 	xcb_image_destroy(image);
 	return true;
 }
-bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output_t monitor) {
+bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * const monitor) {
 	if (!wallpaper_file_path || *wallpaper_file_path == '\0') return false;
 	if (!(conn || init_xcb())) return false;
 	assert(screen);
@@ -1306,8 +1357,8 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output
 	//
 
 	uint16_t
-		target_width = screen->width_in_pixels,
-		target_height = screen->height_in_pixels
+		target_width = monitor->width,
+		target_height = monitor->height
 	;
 
 	// Adjust target dimensions to account for visible background area.
@@ -1329,51 +1380,88 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output
 
 
 	//
-	// Prepare the wallpaper data:
+	// Get pixmap to write into:
+	//
+
+	xcb_pixmap_t root_pixmap = 0;
+
+	bool use_preexisting_root_pixmap;
+	xcb_get_property_reply_t *esetroot_pmap_id_reply;
+	if ((esetroot_pmap_id_reply = get_property_reply(conn,
+		&screen->root, esetroot_pmap_id,
+		XCB_ATOM_PIXMAP, 32/8,
+		1
+	))) {
+		if (verbosity >= 3) printf("Found pre-existing root background. Will write to it directly.\n");
+		use_preexisting_root_pixmap = true;
+		root_pixmap = *(xcb_pixmap_t*)xcb_get_property_value(esetroot_pmap_id_reply);
+		p_delete(&esetroot_pmap_id_reply);
+	} else {
+		fprintf(stderr, "No pre-existing root background was found. Creating new one.\n");
+		use_preexisting_root_pixmap = false;
+		root_pixmap = xcb_generate_id(conn);
+		xcb_create_pixmap_checked(conn,
+			screen->root_depth, root_pixmap, screen->root,
+			screen->width_in_pixels, screen->height_in_pixels
+		);
+		if ((error = xcb_request_check(conn, cookie))) {
+			fprintf(stderr, "Failed to create new root background.\n");
+			handle_error(conn, error);
+			return false;
+		}
+	}
+	assert(root_pixmap);
+	if (verbosity >= 3) printf("Root window background pixmap: \n\t  %u\n\t0x%x\n", root_pixmap, root_pixmap);
+
+
+
+	// Make a graphical context:
+	// https://www.x.org/releases/current/doc/man/man3/xcb_change_gc.3.xhtml
+	gc = xcb_generate_id(conn);
+	const uint32_t gc_values[] = {screen->black_pixel, screen->white_pixel};
+	//xcb_create_gc(conn, gc, p,
+	xcb_create_gc(conn, gc, root_pixmap,
+		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND,
+		gc_values
+	);
+	//gc = screen->root_visual;
+	//gc = screen->default_colormap;
+
+
+
+	//
+	// Prepare and write the wallpaper data:
 	//
 
 	// https://stackoverflow.com/a/77404684
 
-	// Create a pixmap buffer.
-	xcb_pixmap_t p = xcb_generate_id(conn);
-	xcb_create_pixmap(conn, screen->root_depth, p, screen->root, target_width, target_height);
-	if (verbosity > 2) printf("New pixmap (p): \n\t  %u\n\t0x%x\n", p, p);
-	xcb_aux_sync(conn);	// Not sure if necessary.
-	//xcb_flush(conn);
-
-	// Make a graphical context.
-	// https://www.x.org/releases/current/doc/man/man3/xcb_change_gc.3.xhtml
-	gc = xcb_generate_id(conn);
-	const uint32_t gc_values[] = {screen->black_pixel, screen->white_pixel};
-	xcb_create_gc(conn, gc, p,
-		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND,
-		gc_values
-	);
-
-	if (xcb_connection_has_error(conn)) {
-		fprintf(stderr, "Connection has error! (-10)\n");
-		xcb_disconnect(conn);
-		//init_xcb();
-		return false;
-	}
-
-
+	// Prepare the wallpaper data:
 	image_t *img = get_pixel_data(
 		wallpaper_file_path,
 		bits_per_pixel,
 		target_width,
 		target_height
 	);
+	// Note: img should be freed but img->pixels is freed automatically by xcb_image_destroy.
 
-	if (!write_to_pixmap(p, img)) {
-		//free(img->pixels);	// Handled by xcb_image_destroy().
+	if (	// If target dimensions were not achieved.
+		   img->width != target_width
+		|| img->height != target_height
+	) {
+		assert(img->width <= target_width);
+		assert(img->height <= target_height);
+		// Clear pixels that will not be written to.
+		xcb_clear_area(conn, 0, root_pixmap,
+			(monitor->offset_x + target_width) - img->width,	// x
+			(monitor->offset_y + target_height) - img->height,	// y
+			target_width - img->width,				// width
+			target_height - img->height				// height
+		);
+	}
+	if (!write_to_pixmap(root_pixmap, img, monitor)) {
 		free(img);
-		xcb_disconnect(conn);
 		return false;
 	}
-	//free(img->pixels);	// Handled by xcb_image_destroy().
-	free(img);
-	//
 	// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.h.auto.html
 	// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.c.auto.html
 	/*image_t *img = get_pixel_data(wallpaper_file_path);
@@ -1403,20 +1491,18 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output
 		return false;
 	}*/
 
-
+	free(img);
 	if (xcb_connection_has_error(conn)) {
-		fprintf(stderr, "Connection has error! (-3)\n");
-		xcb_disconnect(conn);
-		//init_xcb();
+		fprintf(stderr, "Connection has error!\n");
 		return false;
 	}
+
+
 
 	// https://github.com/awesomeWM/awesome/blob/7ed4dd620bc73ba87a1f88e6f126aed348f94458/root.c#L91
 	// https://github.com/awesomeWM/awesome/blob/7ed4dd620bc73ba87a1f88e6f126aed348f94458/root.c#L57
 
-	//
 	// Prevent sending PropertyNotify event:
-	//
 	xcb_grab_server(conn);
 	const uint32_t values[] = {0};
 	xcb_change_window_attributes(conn,
@@ -1427,135 +1513,64 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output
 		//NO_EVENT_VALUE
 		values
 	);
-
 	if (xcb_connection_has_error(conn)) {
-		fprintf(stderr, "Connection has error! (-2)\n");
-		xcb_disconnect(conn);
-		//init_xcb();
+		fprintf(stderr, "Connection has error!\n");
 		return false;
 	}
+
 
 	//
 	// Set pixmap as the root window's background:
 	//
-	//xcb_change_window_attributes(conn, screen->root, XCB_CW_BACK_PIXMAP, &p);
-	cookie = xcb_change_window_attributes_checked(conn, screen->root, XCB_CW_BACK_PIXMAP, &p);
-	if ((error = xcb_request_check(conn, cookie))) {
-		fprintf(stderr, "Failed to change window attribute.\n");
-		handle_error(conn, error);
+
+	if (!use_preexisting_root_pixmap) {
+		cookie = xcb_change_window_attributes_checked(conn, screen->root, XCB_CW_BACK_PIXMAP, &root_pixmap);
+		if ((error = xcb_request_check(conn, cookie))) {
+			fprintf(stderr, "Failed to change window attribute.\n");
+			handle_error(conn, error);
+		}
 	}
-	//xcb_clear_area(conn, 0, screen->root, 0, 0, 0, 0);
+
 	cookie = xcb_clear_area_checked(conn, 0, screen->root, 0, 0, 0, 0);
 	if ((error = xcb_request_check(conn, cookie))) {
 		fprintf(stderr, "Failed to clear area.\n");
 		handle_error(conn, error);
 	}
-	//xcb_change_window_attributes(conn, win, XCB_CW_BACK_PIXMAP, &p);
-	//xcb_clear_area(conn, 0, win, 0, 0, 0, 0);
-	//xcb_aux_sync(conn);	// Not sure if necessary.
-	//xcb_flush(conn);
 
 	if (xcb_connection_has_error(conn)) {
-		fprintf(stderr, "Connection has error! (-1)\n");
-		xcb_disconnect(conn);
-		//init_xcb();
+		fprintf(stderr, "Connection has error!\n");
 		return false;
 	}
 
 
-	//
-	// Get old wallpaper, to free later.
-	//
-	// echo $(($(xprop -root ESETROOT_PMAP_ID | cut -d\  -f5)))
-	// xprop -root | grep -E 'ESETROOT_PMAP_ID|_XROOTPMAP_ID'
-	//xcb_get_property_cookie_t prop_c = xcb_get_property_unchecked(conn, false,
-	xcb_get_property_cookie_t prop_c = xcb_get_property(conn, false,
-	//cookie = xcb_get_property(conn, false,
-		//screen->root, ESETROOT_PMAP_ID, XCB_ATOM_PIXMAP, 0, 1
-		screen->root, esetroot_pmap_id, XCB_ATOM_PIXMAP, 0, 1
-		//win, ESETROOT_PMAP_ID, XCB_ATOM_PIXMAP, 0, 1
-	);
-	/*//if ((error = xcb_request_check(conn, cookie))) {
-	if ((error = xcb_request_check(conn, prop_c))) {
-		fprintf(stderr, "Failed to get property.\n");
-		handle_error(conn, error);
-	}*/
-	//if (! (prop_c || prop_c.sequence)) {
-	if (prop_c.sequence == 0) {
-		char atom_name[MAX_ATOM_NAME_LEN+1];
-		get_atom_name(conn, esetroot_pmap_id, atom_name);
-		fprintf(stderr,
-			"Null or zero sequence returned by xcb_get_property. Not sure if normal.\n"
-				"\tAtom name: %s"
-				"\tAtom I.D.: %d"
-				"\tCookie sequence: %d"
-			,
-			atom_name,
-			esetroot_pmap_id,
-			prop_c.sequence
-		);
-	}
-
 
 	//
 	// Set properties, so clients can reference for pseudo-transparency:
+	// 	This will be done even for pre-existing root pixmaps, in case the properties were not previously set.
 	//
-	//xcb_change_property(conn, XCB_PROP_MODE_REPLACE, screen->root, _XROOTPMAP_ID, XCB_ATOM_PIXMAP, 32, 1, &p);
-	//xcb_change_property(conn, XCB_PROP_MODE_REPLACE, screen->root, ESETROOT_PMAP_ID, XCB_ATOM_PIXMAP, 32, 1, &p);
-	//cookie = xcb_change_property(conn, XCB_PROP_MODE_REPLACE, screen->root, _xrootpmap_id, XCB_ATOM_PIXMAP, 32, 1, &p);
-	cookie = xcb_change_property_checked(conn, XCB_PROP_MODE_REPLACE, screen->root, _xrootpmap_id, XCB_ATOM_PIXMAP, 32, 1, &p);
+
+	cookie = xcb_change_property_checked(conn, XCB_PROP_MODE_REPLACE, screen->root, _xrootpmap_id, XCB_ATOM_PIXMAP, 32, 1, &root_pixmap);
 	if ((error = xcb_request_check(conn, cookie))) {
 		fprintf(stderr, "Failed to change window property: _XROOTPMAP_ID\n");
 		handle_error(conn, error);
 	}
-	//cookie = xcb_change_property(conn, XCB_PROP_MODE_REPLACE, screen->root, esetroot_pmap_id, XCB_ATOM_PIXMAP, 32, 1, &p);
-	cookie = xcb_change_property_checked(conn, XCB_PROP_MODE_REPLACE, screen->root, esetroot_pmap_id, XCB_ATOM_PIXMAP, 32, 1, &p);
+	cookie = xcb_change_property_checked(conn, XCB_PROP_MODE_REPLACE, screen->root, esetroot_pmap_id, XCB_ATOM_PIXMAP, 32, 1, &root_pixmap);
 	if ((error = xcb_request_check(conn, cookie))) {
 		fprintf(stderr, "Failed to change window property: ESETROOT_PMAP_ID\n");
 		handle_error(conn, error);
 	}
 
 
-	//
-	// Free old wallpaper (only ESETROOT_PMAP_ID):
-	//
-	//xcb_get_property_reply_t *prop_r = xcb_get_property_reply(conn, prop_c, NULL);
-	xcb_get_property_reply_t *prop_r = xcb_get_property_reply(conn, prop_c, &error);
-	//xcb_poll_for_reply(conn, prop_c, &prop_r, &error);	// https://xcb.freedesktop.org/ProtocolExtensionApi/
-	xcb_aux_sync(conn);	// Not sure if necessary.
-	xcb_flush(conn);	// Probably not necessary.
-	//if (prop_r && prop_r->value_len) {
-	if (prop_r) {
-		if (error) {
-			fprintf(stderr, "Failed to delete old pixmap from server. Processing property reply error...\n");
-			handle_error(conn, error);
-		/*} else if (prop_r->type == XCB_NONE) {
-			fprintf(stderr, "Failed to delete old pixmap from server. Property reply type is XCB_NONE.\n");
-		} else if (xcb_get_property_value_length(prop_r)) {*/
-		} else if (prop_r->type == XCB_NONE) {
-			if (verbosity > 1) printf("No pre-existing wallpaper was detected.\n");
-			// Ignore case where no previous wallpaper was active.
-		} else {
-			if (xcb_get_property_value_length(prop_r)) {
-				// https://github.com/awesomeWM/awesome/blob/7ed4dd620bc73ba87a1f88e6f126aed348f94458/root.c#L83
-				//xcb_pixmap_t *rootpix = xcb_get_property_value(prop_r);
-				xcb_pixmap_t *rootpix = (xcb_pixmap_t*)xcb_get_property_value(prop_r);
-				//if (rootpix) xcb_kill_client(conn, *rootpix);
-				if (rootpix) {
-					//printf("Deleting old pixmap from server: \n\t  %u\n\t0x%x\n", *rootpix, *rootpix);
-					if (verbosity > 3) printf("Deleting old pixmap from server: \n\t  %u\n\t%#x\n", *rootpix, *rootpix);
-					xcb_kill_client(conn, *rootpix);
-				}
-			} else {
-				fprintf(stderr, "Failed to delete old pixmap from server. No error information provided with property reply.\n");
-			}
-		}
-	} else {
-		fprintf(stderr, "Failed to delete old pixmap from server. Property reply was not received.\n");
+	if (!use_preexisting_root_pixmap) {	// If we created a new root window background pixmap.
+		// Free old wallpaper:
+		if (verbosity > 3) printf("Deleting old pixmap from server: \n\t  %u\n\t%#x\n", root_pixmap, root_pixmap);
+		xcb_kill_client(conn, root_pixmap);
 	}
-	p_delete(&prop_r);
 
 
+	//
+	// Clean-up and complete:
+	//
 
 	// Reset sending PropertyNotify event:
 	xcb_change_window_attributes(conn,
@@ -1565,10 +1580,10 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const xcb_randr_output
 	);
 	xcb_ungrab_server(conn);
 
-	// Make sure pixmap is not destroyed on disconnect:
+	// Request for pixmap to be preserved after this application's connection/session ends:
 	xcb_set_close_down_mode(conn, XCB_CLOSE_DOWN_RETAIN_PERMANENT);
 
-	// Clean up and complete.
+	// Complete.
 	xcb_aux_sync(conn);	// Not sure if necessary.
 	xcb_flush(conn);
 	return true;

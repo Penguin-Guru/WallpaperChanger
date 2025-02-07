@@ -75,12 +75,26 @@ static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Rece
 	fprintf(stderr, "Failed to match monitor I.D.: %u\n", s_target_monitor_id);
 	return 0;
 }
+static inline monitor_info* const get_monitor_by_id(const uint32_t id) {	// Receives xcb_randr_output_t.
+	assert(s_monitors.ct > 0);
+	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
+		if (s_monitors.monitor[i].id == id) return &(s_monitors.monitor[i]);
+	}
+	fprintf(stderr, "Failed to match monitor I.D.: %u\n", s_target_monitor_id);
+	return 0;
+}
 
 
 /* Misc. intermediary functions: */
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
-	if (!set_wallpaper(wallpaper_file_path, s_target_monitor_id)) {
+	// To do: use active monitor as default.
+	if (!s_target_monitor_id) {
+		fprintf(stderr, "No target monitor. Aborting.\n");
+		return false;
+	}
+
+	if (!set_wallpaper(wallpaper_file_path, get_monitor_by_id(s_target_monitor_id))) {
 		fprintf(stderr, "Failed to set new wallpaper.\n");
 		return false;
 	}
@@ -587,11 +601,15 @@ bool handle_list_monitors(const arg_list_t * const al) {
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		printf(
 			"%-*s\n"	// I don't know of a format specifier for unsigned char*.
-				"\t Width: %*u\n"
-				"\tHeight: %*u\n"
+				"\t   Width: %*u\n"
+				"\t  Height: %*u\n"
+				"\tx_offset: %*u\n"
+				"\ty_offset: %*u\n"
 			, 10, (char*)(s_monitors.monitor[i].name)
 			, 4, s_monitors.monitor[i].width
 			, 4, s_monitors.monitor[i].height
+			, 4, s_monitors.monitor[i].offset_x
+			, 4, s_monitors.monitor[i].offset_y
 		);
 	}
 	return true;
