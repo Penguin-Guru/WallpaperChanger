@@ -676,7 +676,7 @@ bool handle_target_monitor(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	s_target_monitor_name = al->args[0];
-	return false;
+	return true;
 }
 
 /* Main: */
@@ -712,10 +712,10 @@ static inline bool load_application_component(const enum AppComponent component)
 			} else if (s_monitors.ct == 1) {
 				s_target_monitor_id = s_monitors.monitor[0].id;
 				if (verbosity >= 3) printf("Defaulting to the only monitor detected: \"%s\"\n", s_monitors.monitor[0].name);
-			} else {
+			/*} else {	// Can't centralise failure here because it would preclude `--list-monitors`.
 				// To do: use active monitor as default.
 				fprintf(stderr, "No target monitor. Aborting.\n");
-				return false;
+				return false;*/
 			}
 
 			break;
