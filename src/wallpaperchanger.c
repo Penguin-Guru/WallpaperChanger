@@ -583,9 +583,13 @@ bool handle_print(const arg_list_t * const al) {
 
 	printf("Current wallpaper: \"%s\"\n", current->file);
 
-	//image_t img = {.file = current->file};
-	//free(current);	// I'm not sure why this isn't necessary.
-	//if (! get_image_size(&img)) {
+	if (current->tags ^= encode_tag(TAG_CURRENT)) {	// Excluding "current", since it would be redundant.
+		char tag_string[Max_Tag_String_Len];
+		gen_tag_string(tag_string, current->tags);
+		// (Implicitly all) "Tags" is a bit misleading but "other tags" looks terrible. Fix later.
+		printf("\t  Tags: %s\n", tag_string);	// Indented to align colons.
+	}
+
 	image_t *img;
 	if (! (img = get_image_size(current->file))) {
 		fprintf(stderr, "Error scanning image file.\n");
@@ -593,7 +597,12 @@ bool handle_print(const arg_list_t * const al) {
 		return false;
 	}
 	free_row(current);
-	printf("\tWidth: %u\n\tHeight: %u\n", img->width, img->height);
+	printf(
+		"\t Width: %*u\n"
+		"\tHeight: %*u\n"
+		, 4, img->width
+		, 4, img->height
+	);
 
 	free(img);
 	return true;
