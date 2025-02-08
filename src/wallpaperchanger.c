@@ -292,10 +292,7 @@ int process_inode(
 	struct FTW *pathinfo
 ) {
 	assert(pathinfo->level >= 0);
-	if (info->st_size == 0) {
-		fprintf(stderr, "Detected inode entry for object with zero size: \"%s\"\n", filepath);
-		return -1;
-	}
+	if (info->st_size == 0) return 0;	// Continue search.
 
 	switch (typeflag) {
 		case FTW_D:
