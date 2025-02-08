@@ -576,21 +576,12 @@ monitor_list const get_monitor_info() {
 		return (monitor_list){NULL};
 	}
 	const int len = xcb_randr_get_monitors_monitors_length(rgmr);
-	//assert(len >= 4);
-	//if (len != 4) fprintf(stderr,
-	if (len != 1) fprintf(stderr,
-		"Warning! This program has not been tested with multiple monitors.\n"
-		"\tIt will probably not work as intended, if at all.\n"
-	);
 	monitor_list ret = {
 		.monitor = calloc(len, sizeof(monitor_info)),
 		.ct = 0
 	};
 	for (
 		xcb_randr_monitor_info_iterator_t m = xcb_randr_get_monitors_monitors_iterator(rgmr);
-		//m.data != xcb_randr_monitor_info_end(m).data;
-		//xcb_randr_monitor_info_end(m);
-		//m.data->name;
 		m.rem;
 		xcb_randr_monitor_info_next(&m)
 	) {
