@@ -603,14 +603,21 @@ monitor_list const get_monitor_info() {
 			return (monitor_list){NULL};
 		}
 
-		ret.monitor[ret.ct++] = (monitor_info){
+		// Note: name value must be copied because the memory is freed as iterator progresses.
+		const uint16_t name_length = xcb_get_atom_name_name_length(anr) + 1;
+		ret.monitor[ret.ct] = (monitor_info){
 			.id = m.index,
-			.name = xcb_get_atom_name_name(anr),
+			.name = malloc(name_length),
 			.width = m.data->width,
 			.height = m.data->height,
 			.offset_x = m.data->x,
 			.offset_y = m.data->y
 		};
+		strlcpy(
+			ret.monitor[ret.ct++].name,
+			xcb_get_atom_name_name(anr),
+			name_length
+		);
 		free(anr);
 	}
 

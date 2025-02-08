@@ -6,7 +6,7 @@
 
 typedef struct monitor_info {
 	uint32_t id;	// xcb_randr_output_t
-	char *name;	// Do not free.
+	char *name;
 	uint16_t width, height;
 	uint16_t offset_x, offset_y;
 	unsigned int rotation;	// xcb_randr_rotation_t

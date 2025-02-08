@@ -296,7 +296,11 @@ row_t* get_current(const file_path_t file_path) {
 	return true;
 }*/
 bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
-	if (!new_entry) return false;
+	assert(new_entry);
+	assert(new_entry->monitor_name);
+	assert(new_entry->monitor_name[0]);
+	assert(new_entry->file);
+	assert(new_entry->file[0]);
 
 	if (strpbrk(new_entry->file, COLUMN_DELIMS)) {
 		fprintf(stderr, "Not adding entry to database. File path contains invalid characters-- probably a semicolon or newline.\n");

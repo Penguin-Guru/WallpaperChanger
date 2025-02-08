@@ -34,8 +34,7 @@ void clean_up() {
 	}
 	if (s_monitors.ct) {
 		for (uint_fast16_t i = 0; i < s_monitors.ct; i--) {
-			//free(s_monitors.monitor[i].name);
-			//free(s_monitors.monitor[i]);
+			free(s_monitors.monitor[i].name);
 			free(s_monitors.monitor + i);
 		}
 	} else assert(!s_monitors.monitor);
@@ -57,7 +56,7 @@ bool is_text_true(const char  * const string) {
 	return false;
 }
 
-static inline uint32_t get_monitor_id_from_name(const char * const name) {	// Returns xcb_randr_output_t.
+static inline uint32_t get_monitor_id_from_name(const char * const name) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		// Hopefully strcoll catches any signed mismatches, otherwise use strcmp.
@@ -67,7 +66,7 @@ static inline uint32_t get_monitor_id_from_name(const char * const name) {	// Re
 	fprintf(stderr, "Failed to match monitor name: \"%s\"\n", name);
 	return 0;
 }
-static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Receives xcb_randr_output_t.
+static inline char * const get_monitor_name_from_id(const uint32_t id) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		if (s_monitors.monitor[i].id == id) return (char*)(s_monitors.monitor[i].name);
@@ -75,7 +74,7 @@ static inline char * const get_monitor_name_from_id(const uint32_t id) {	// Rece
 	fprintf(stderr, "Failed to match monitor I.D.: %u\n", s_target_monitor_id);
 	return 0;
 }
-static inline monitor_info* const get_monitor_by_id(const uint32_t id) {	// Receives xcb_randr_output_t.
+static inline monitor_info* const get_monitor_by_id(const uint32_t id) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		if (s_monitors.monitor[i].id == id) return &(s_monitors.monitor[i]);
@@ -93,8 +92,15 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		fprintf(stderr, "No target monitor. Aborting.\n");
 		return false;
 	}
+	monitor_info *target_monitor;
+	if (!(target_monitor = get_monitor_by_id(s_target_monitor_id))) {
+		fprintf(stderr, "Aborting.\n");
+		return false;
+	}
+	assert(target_monitor->name);
+	assert(target_monitor->name[0]);
 
-	if (!set_wallpaper(wallpaper_file_path, get_monitor_by_id(s_target_monitor_id))) {
+	if (!set_wallpaper(wallpaper_file_path, target_monitor)) {
 		fprintf(stderr, "Failed to set new wallpaper.\n");
 		return false;
 	}
@@ -105,7 +111,7 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		fprintf(stderr, "Invalid length for file path.\n");
 		return false;
 	}
-	new_entry.monitor_name = get_monitor_name_from_id(s_target_monitor_id);
+	new_entry.monitor_name = target_monitor->name;
 	new_entry.file = wallpaper_file_path;
 	new_entry.tags = tags | encode_tag(TAG_CURRENT);	// Make sure it's tagged as current.
 	assert(data_file_path);
