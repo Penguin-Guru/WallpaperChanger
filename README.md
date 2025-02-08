@@ -1,7 +1,7 @@
 # WallpaperChanger
 This is a fairly simple wallpaper manager that will probably only work on Linux. The code is still messy and the overall design is questionable. I wanted to rewrite my Bash script in C++, then I decided to port that to C. It was mostly for practice but I do use this regularly. I know there are a few areas in which the code can be improved and I'm sure there are some bugs I haven't caught yet. Please file any issues and I'll fix what I can.
 
-Simple multi-monitor support has been implemented (with the Randr extension) but is still very much in testing.
+Simple multi-monitor support has been implemented (with the Randr extension). It seems to work well enough but the displayed wallpaper(s) may be mangled when (certain) monitors are disconnected. I don't know of a window-manager-agnostic way to handle these sort of events, since this program does not run continuously. In those cases, you will simply need to run the program again.
 
 ## How it works:
 
