@@ -60,7 +60,7 @@ static inline uint32_t get_monitor_id_from_name(const char * const name) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		// Hopefully strcoll catches any signed mismatches, otherwise use strcmp.
-		if (strcoll((char*)(s_monitors.monitor[i].name), name)) continue;
+		if (!strcoll((char*)(s_monitors.monitor[i].name), name)) continue;
 		return s_monitors.monitor[i].id;
 	}
 	fprintf(stderr, "Failed to match monitor name: \"%s\"\n", name);
@@ -171,7 +171,7 @@ short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 	}
 	if (s_wallpapers == NULL) {	// Populate the cache if not already done from previous call.
 		tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
-		rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria);
+		rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria, NULL);
 		if (!rows || rows->ct <= 0) {
 			//fprintf(stderr, "No matching entries in database.\n");
 			if (rows) free_rows(rows);
@@ -481,7 +481,7 @@ bool handle_set_fav(const arg_list_t * const al) {
 	tags_t p_criteria = encode_tag(TAG_FAVOURITE);
 	tags_t n_criteria = encode_tag(TAG_CURRENT);
 	n_criteria |= encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
-	rows_t *favs = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria);
+	rows_t *favs = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria, NULL);
 	// For now, the database entries are in descending chronological order.
 
 	if (favs == NULL) {
@@ -572,39 +572,54 @@ bool handle_delete_current(const arg_list_t * const al) {
 	return sanity_check(data_file_path);
 }*/
 bool handle_print(const arg_list_t * const al) {
-	assert(al == 0);
+	assert(al == NULL || al->args[0]);
 	if (verbosity == 0) return false;
 
-	row_t *current = get_current(data_file_path);
-	if (current == NULL) {
+	rows_t *currents = get_current(data_file_path, al ? al->args[0] : NULL);
+	if (currents == NULL) {
 		fprintf(stderr, "Error getting current wallpaper.\n");
 		return false;
 	}
+	assert(currents->ct > 0);
 
-	printf("Current wallpaper: \"%s\"\n", current->file);
+	// Used to align colons.
+	static const uint_fast8_t LengthOfLongestAttribute = sizeof("Height");
 
-	if (current->tags ^= encode_tag(TAG_CURRENT)) {	// Excluding "current", since it would be redundant.
-		char tag_string[Max_Tag_String_Len];
-		gen_tag_string(tag_string, current->tags);
-		// (Implicitly all) "Tags" is a bit misleading but "other tags" looks terrible. Fix later.
-		printf("\t  Tags: %s\n", tag_string);	// Indented to align colons.
+	for (num_rows i = 0; i < currents->ct; i++) {
+		printf(
+			"Monitor: \"%s\"\n"
+				"\t%*s: \"%s\"\n"
+			, currents->row[i]->monitor_name
+			, LengthOfLongestAttribute, "File" , currents->row[i]->file
+		);
+
+		if (currents->row[i]->tags ^= encode_tag(TAG_CURRENT)) {	// Excluding "current", since it would be redundant.
+			char tag_string[Max_Tag_String_Len];
+			gen_tag_string(tag_string, currents->row[i]->tags);
+			// (Implicitly all) "Tags" is a bit misleading but "other tags" looks terrible. Fix later.
+			//printf("\t  Tags: %s\n", tag_string);	// Indented to align colons.
+			printf(
+				"\t%*s: %s\n"
+				, LengthOfLongestAttribute, "Tags"
+				, tag_string
+			);
+		}
+
+		image_t *img;
+		if (! (img = get_image_size(currents->row[i]->file))) {
+			fprintf(stderr, "Error scanning image file.\n");
+			continue;
+		}
+		printf(
+			"\t%*s: %*u\n"
+			"\t%*s: %*u\n"
+			, LengthOfLongestAttribute, "Width", 4, img->width
+			, LengthOfLongestAttribute, "Height", 4, img->height
+		);
+
+		free(img);
 	}
-
-	image_t *img;
-	if (! (img = get_image_size(current->file))) {
-		fprintf(stderr, "Error scanning image file.\n");
-		free_row(current);
-		return false;
-	}
-	free_row(current);
-	printf(
-		"\t Width: %*u\n"
-		"\tHeight: %*u\n"
-		, 4, img->width
-		, 4, img->height
-	);
-
-	free(img);
+	free_rows(currents);
 	return true;
 }
 bool handle_list_monitors(const arg_list_t * const al) {

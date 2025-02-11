@@ -14,8 +14,8 @@ static inline void print_invalid(const char* const term) {
 static inline void print_arg_mismatch(param_name name, const param_arg_parameters_t arg_params, const param_arg_ct provided) {
 	if (arg_params.min == arg_params.max) {
 		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
-				"\tTerms expected: \"%hu\"\n"
-				"\tTerms provided: \"%hu\"\n"
+				"\tTerms expected: %hu\n"
+				"\tTerms provided: %hu\n"
 			,
 			name,
 			arg_params.min,
@@ -23,8 +23,8 @@ static inline void print_arg_mismatch(param_name name, const param_arg_parameter
 		);
 	} else {
 		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
-				"\tTerms expected: \"%hu -- %hu\"\n"
-				"\tTerms provided: \"%hu\"\n"
+				"\tTerms expected: %hu -- %hu\n"
+				"\tTerms provided: %hu\n"
 			,
 			name,
 			arg_params.min,
@@ -40,12 +40,14 @@ parameter_t *param_buff = NULL;
 arg_list_t args_buff = {};	// Heap currently realloc'd to accommodate each new argument per parameter.
 
 static inline bool push_param_buff() {	// For parameters with arguments.
+	assert(param_buff);
 	bool ret = register_param(param_buff, &args_buff, CLI);
 	reset_args_buffer(&args_buff);
 	return ret;
 }
 static inline bool push_param_unbuff(parameter_t *param) {	// For parameters without arguments.
 	if (param == NULL) param = param_buff;
+	assert(param);
 	bool ret = register_param(param, NULL, CLI);
 	if (args_buff.ct) {
 		fprintf(stderr, "Cli: pushing unbuffered parameter, but the argument buffer was not empty.\n");
@@ -53,6 +55,29 @@ static inline bool push_param_unbuff(parameter_t *param) {	// For parameters wit
 	}
 	assert(args_buff.args == NULL);
 	return ret;
+}
+static inline bool push_param(parameter_t *param) {
+	if (param == NULL) param = param_buff;
+	assert(param);
+	if (args_buff.ct == 0) return push_param_unbuff(param);
+	return push_param_buff();
+}
+static inline bool push_param_if_terms_pending(const uint_fast8_t terms_pending, parameter_t *param) {
+	assert(terms_pending >= 0);
+	if (terms_pending == 0) return true;
+	// It would be nice if this could be moved to init, so it could also be used when parsing config files.
+	if (args_buff.ct < param_buff->arg_params.min) {
+		// A flag was not expected. Missing term(s).
+		print_arg_mismatch(
+			param_buff->handler_set.name,
+			param_buff->arg_params,
+			args_buff.ct
+		);
+		free_args(&args_buff);
+		return false;
+	}
+	// Minimum acceptable number of terms for previous flag have been provided.
+	if (!push_param(param_buff)) return false;
 }
 
 static bool match_short_param(short_flag_t arg) {
@@ -135,23 +160,13 @@ bool parse_params(int argc, char** argv) {
 					if (!push_param_buff()) return false;
 				}
 				continue;
-			} else {
-				print_invalid(argvi);
-				free_args(&args_buff);
-				return false;
 			}
-		}
-		// We now know that the parameter is a flag-- it begins with a '-' character.
-		if (terms_pending) {	// It would be nice if this could be moved to init, so it could also be used when parsing config files.
-			// A flag was not expected.
-			print_arg_mismatch(
-				param_buff->handler_set.name,
-				param_buff->arg_params,
-				args_buff.ct
-			);
+			print_invalid(argvi);
 			free_args(&args_buff);
 			return false;
 		}
+		// We now know that the parameter is a flag-- it begins with a '-' character.
+		push_param_if_terms_pending(terms_pending, param_buff);
 		if (argvi[1] == '-') {	// Long form flag ("--").
 			if (argvi[2] == 0) return true;	// Parameter is only two hyphens-- respect convention to stop processing parameters.
 			long_flag_t arg = strdup(argvi+2);
@@ -172,16 +187,7 @@ bool parse_params(int argc, char** argv) {
 		}
 	}
 	// Done parsing.
-	if (terms_pending) {	// It would be nice if this could be moved to init, so it could also be used when parsing config files.
-		// A flag was not expected.
-		print_arg_mismatch(
-			param_buff->handler_set.name,
-			param_buff->arg_params,
-			args_buff.ct
-		);
-		free_args(&args_buff);
-		return false;
-	}
+	push_param_if_terms_pending(terms_pending, param_buff);
 	return true;
 }
 

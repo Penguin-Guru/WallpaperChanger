@@ -98,8 +98,9 @@ inline tags_t encode_tag(enum Tag tag) {
 	return 1<<tag;
 }
 
-row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria) {
+row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria, const char * const monitor_name) {
 	static_assert(strlen(COLUMN_DELIMS) > 0, "No column delimiters have been hard-coded.");
+	assert(monitor_name == NULL || monitor_name[0] != '\0');
 	assert(row_num && row_string);
 	assert(!(n_criteria && p_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 
@@ -119,58 +120,67 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 		// Add to token array if first or different from previous.
 		if (token_len == 0 || strcmp(buff, token[token_len-1])) strncpy(token[token_len++], buff, MAX_COLUMN_LENGTH);
 	}
-	if (token_len < 2 || token_len > NUM_COLUMNS) {
+
+	// Note: The only column that may be missing from a valid entry is the tags.
+
+	if (token_len < NUM_COLUMNS - 1 || token_len > NUM_COLUMNS) {
 		// No warning for empty lines.
 		if (token_len > 0) fprintf(stderr, "Invalid number of columns for row #%lu. Columns detected: %hu.\n", row_num, token_len);
 		return NULL;
 	}
 
-	if (p_criteria == NULL || (token_len == NUM_COLUMNS)) {	// The only column that may be missing from a valid entry is the tags.
-		// Use tags_t as bitmask to check tags.
-		tags_t tags;
-		if (
-			(!p_criteria || (*p_criteria & (tags = get_tag_mask(token[3]))))	// Positive match criteria.
-			&& ! (n_criteria && (*n_criteria & tags))		// Negative match criteria.
-		) {
-			row_t *row = (row_t*)malloc(sizeof(row_t));	// Why does cast need to be a pointer?
-
-			// Timestamp:
-			// Assuming timestamp is present and appears first in parsing order.
-			if (strnlen(token[0], MAX_TIMESTAMP_LENGTH) == MAX_TIMESTAMP_LENGTH) {
-				fprintf(stderr, "Timestamp in database entry exceeds hard-coded maximum.\n");
-				row->ts[0] = '\0';
-			} else {
-				strcpy(row->ts, token[0]);
-			}
-
-			size_t len;
-
-			// Monitor name:
-			if (!(len = strlen(token[1]))) {
-				fprintf(stderr, "Monitor name field in database has zero length.\n");
-			} else {
-				row->monitor_name = (monitor_name_t)malloc(len+1);	// +1 for termination.
-				strcpy(row->monitor_name, token[1]);
-			}
-
-			// File path:
-			// Assume file path is present and appears third or second in parsing order.
-			if (!(len = strlen(token[2]))) {
-				// Load entries with empty file paths, but warn user.
-				fprintf(stderr, "Invalid length for file path in database entry!\n");
-			} else {
-				row->file = (file_path_t)malloc(len+1);	// +1 for terminating null?
-				strcpy(row->file, token[2]);
-			}
-
-			row->tags = tags;
-			return row;
-		}
+	if (p_criteria != NULL && token_len != NUM_COLUMNS) {
+		// Rows with no tags will never match any specified tags.
+		return NULL;
 	}
+
+	// Use tags_t as bitmask to check tags.
+	tags_t tags;
+	if (
+		(!p_criteria || (*p_criteria & (tags = get_tag_mask(token[3]))))	// Positive match criteria.
+		&& (! (n_criteria && (*n_criteria & tags)) )		// Negative match criteria.
+		&& (monitor_name == NULL || !strcasecmp(token[1], monitor_name))
+	) {
+		row_t *row = (row_t*)malloc(sizeof(row_t));
+
+		// Timestamp:
+		// Assuming timestamp is present and appears first in parsing order.
+		if (strnlen(token[0], MAX_TIMESTAMP_LENGTH) == MAX_TIMESTAMP_LENGTH) {
+			fprintf(stderr, "Timestamp in database entry exceeds hard-coded maximum.\n");
+			row->ts[0] = '\0';
+		} else {
+			strcpy(row->ts, token[0]);
+		}
+
+		size_t len;
+
+		// Monitor name:
+		if (!(len = strlen(token[1]))) {
+			fprintf(stderr, "Monitor name field in database has zero length.\n");
+		} else {
+			row->monitor_name = (monitor_name_t)malloc(len+1);	// +1 for termination.
+			strcpy(row->monitor_name, token[1]);
+		}
+
+		// File path:
+		// Assume file path is present and appears third or second in parsing order.
+		if (!(len = strlen(token[2]))) {
+			// Load entries with empty file paths, but warn user.
+			fprintf(stderr, "Invalid length for file path in database entry!\n");
+		} else {
+			row->file = (file_path_t)malloc(len+1);	// +1 for terminating null?
+			strcpy(row->file, token[2]);
+		}
+
+		row->tags = tags;
+		return row;
+	}
+
 	return NULL;
 }
 
-rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
+rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria, const char * const monitor_name) {
+	assert(monitor_name == NULL || monitor_name[0] != '\0');
 	if (n_criteria && p_criteria && (*p_criteria & *n_criteria)) {
 		fprintf(stderr, "Can't match row with conflicting positive and negative match criteria.\n");
 		return NULL;
@@ -195,7 +205,7 @@ rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t 
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
+		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria, monitor_name) ) {
 			if (++num_rows_matched > row_array_size) {
 				row_array_size *= 2;
 				row_array = (row_t**)realloc(row_array, row_array_size * sizeof(row_t*));
@@ -217,24 +227,23 @@ rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t 
 	return NULL;
 }
 
-row_t* get_current(const file_path_t file_path) {
+rows_t* get_current(const file_path_t file_path, const char * const monitor_name) {
+	assert(monitor_name == NULL || monitor_name[0] != '\0');
+
 	tags_t criteria = encode_tag(TAG_CURRENT);
-	rows_t *res = get_rows_by_tag(file_path, &criteria, NULL);
+	rows_t *res = get_rows_by_tag(file_path, &criteria, NULL, monitor_name);
 	if (res == NULL) {
 		fprintf(stderr, "No matching rows found.\n");
 		return NULL;
 	}
-	if (res->ct != 1) {	// There should only be one current entry.
+	if (monitor_name == NULL && res->ct != 1) {	// There should only be one current entry.
 		fprintf(stderr, "Unexpected number of rows matched.\n");
 		free_rows(res);
 		return NULL;
 	}
+	// Currently no sanity check to catch duplicate "current" rows per monitor.
 
-	row_t *ret = res->row[0];
-	// Free only container, not the (one) row.
-	free(res->row);	// Eliminate later.
-	free(res);
-	return ret;
+	return res;
 }
 
 
@@ -369,9 +378,8 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	tags_t current_mask = encode_tag(TAG_CURRENT);
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
-		/*if ( row_t *row = get_row_if_match(++row_num, string, &current_mask) ) {*/
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL) ) {
+		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL, NULL) ) {
 			char tag_string[Max_Tag_String_Len];	// Name takes precedence over previously defined.
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
@@ -513,7 +521,7 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, criteria, NULL) ) {
+		if ( row = get_row_if_match(++row_num, string, criteria, NULL, NULL) ) {
 			if ( (row->tags & *tags_mod) == *tags_mod) {
 				// All tags requested are already associated with the row.
 				fprintf(stderr, "Database entry already associated with all requested tags. Ignoring.\n");
@@ -585,7 +593,7 @@ bool del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_c
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria) ) {
+		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria, NULL) ) {
 			if (ret_rows->ct == 0) {
 				if (! (ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
 					fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);

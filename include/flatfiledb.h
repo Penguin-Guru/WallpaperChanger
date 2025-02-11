@@ -88,14 +88,19 @@ row_t* get_row_if_match(
 	const num_rows row_num,
 	const char *row_string,
 	tags_t *p_criteria,
-	tags_t *n_criteria	// Optional-- set to NULL.
+	tags_t *n_criteria,	// Optional-- set to NULL.
+	const char * const monitor_name	// Optional-- set to NULL.
 );
 rows_t* get_rows_by_tag(
 	const file_path_t file_path,
 	tags_t *p_criteria,
-	tags_t *n_criteria	// Optional-- set to NULL.
+	tags_t *n_criteria,	// Optional-- set to NULL.
+	const char * const monitor_name	// Optional-- set to NULL.
 );
-row_t* get_current(const file_path_t file_path);
+rows_t* get_current(
+	const file_path_t file_path,
+	const char * const monitor_name	// Optional-- set to NULL.
+);
 
 bool append_new_current(const file_path_t data_file_path, row_t *new_entry);
 
