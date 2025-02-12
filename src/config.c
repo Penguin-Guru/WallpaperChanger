@@ -1,6 +1,5 @@
 
-#define _XOPEN_SOURCE
-#define _GNU_SOURCE	// For strchrnul. Probably supersedes _XOPEN_SOURCE.
+#define _GNU_SOURCE	// For strchrnul.
 
 #include <sys/stat.h>
 #include <string.h>

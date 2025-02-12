@@ -1,12 +1,4 @@
-// Support SuSv4 features (POSIX.1-2008 + XSI):
-//#define _XOPEN_SOURCE 700
-
-// Support larger files:
-#define _LARGEFILE64_SOURCE
-#define _FILE_OFFSET_BITS 64 
-
-#define _XOPEN_SOURCE
-#define _GNU_SOURCE	// For strchrnul (and no longer mempcpy). Probably supersedes _XOPEN_SOURCE.
+#define _GNU_SOURCE	// For strchrnul.
 
 #include <string.h>
 #include <ftw.h>	// Used for finding new wallpapers.

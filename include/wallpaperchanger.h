@@ -1,5 +1,21 @@
 #pragma once
 
+
+#include <features.h>
+#ifndef __linux__
+#	warning "This program has only been tested on Linux."
+#endif
+#ifndef __GNUC__
+#	error "This program requires GNU C extensions."
+#endif
+#if (__STDC_VERSION__ < 202000)
+#	warning "This program was written for C23."
+#endif
+#if !( defined(__FreeBSD__) || defined(__NetBSD__) || (defined(__GLIBC__) && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38) || __GLIBC__ > 2)) )
+#	error "System does not appear to offer strchrnul."
+#endif
+
+
 #include <stdbool.h>
 #include <stddef.h>	// For size_t.
 #include "libxdgbasedir.h"
