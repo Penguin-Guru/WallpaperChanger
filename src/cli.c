@@ -151,7 +151,9 @@ bool parse_params(int argc, char** argv) {
 					return false;
 				}
 				*pos = '\0';*/
-				*((char*)mempcpy(arg_buff, argvi, len)) = '\0';
+				//*((char*)mempcpy(arg_buff, argvi, len)) = '\0';
+				memcpy(arg_buff, argvi, len);
+				arg_buff[len] = '\0';
 
 				args_buff.args = (argument*)reallocarray(args_buff.args, args_buff.ct + 1, sizeof(argument));
 				args_buff.args[args_buff.ct++] = arg_buff;

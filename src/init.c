@@ -145,13 +145,13 @@ static inline const char* load_default_config_file() {
 	//strncat(config_path, config_file_name, name_len);
 	//
 	//pos = (char*)mempcpy(config_path, config_dir, dir_len);
-	mempcpy(config_path, config_dir, dir_len);
+	memcpy(config_path, config_dir, dir_len);
 	free(config_dir);
 	//
 	//*pos++ = '/';
 	/*pos = (char*)mempcpy(pos, config_file_name, name_len);
 	*pos = '\0';*/
-	mempcpy(config_path + dir_len, config_file_name, name_len);
+	memcpy(config_path + dir_len, config_file_name, name_len);
 	config_path[dir_len + name_len] = '\0';
 
 	file_path_t silly = config_path;

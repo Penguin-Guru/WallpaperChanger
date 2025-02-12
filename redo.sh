@@ -32,6 +32,7 @@ declare -a project_libs=(
 )
 declare prog=' gcc '
 declare debug_string=' -g3 -ggdb -Og -fno-omit-frame-pointer '
+#declare debug_string=' -g3 -ggdb -Og -fno-builtin -fno-omit-frame-pointer '
 	## "-Wl,--build-id" is required for `perf buildid-cache`.
 	## "-pg" for static probes (prof/gprof).
 declare -i max_errors=3

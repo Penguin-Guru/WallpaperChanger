@@ -5,7 +5,8 @@
 #define _LARGEFILE64_SOURCE
 #define _FILE_OFFSET_BITS 64 
 
-#define _GNU_SOURCE	// For strchrnul and mempcpy. Probably supersedes _XOPEN_SOURCE.
+#define _XOPEN_SOURCE
+#define _GNU_SOURCE	// For strchrnul (and no longer mempcpy). Probably supersedes _XOPEN_SOURCE.
 
 #include <string.h>
 #include <ftw.h>	// Used for finding new wallpapers.
@@ -661,7 +662,8 @@ bool handle_database_path(const arg_list_t * const al) {
 	}
 	data_file_path = (file_path_t)malloc(len+1);
 	//strcpy(data_file_path, *al->args[0]);
-	*((char*)mempcpy(data_file_path, al->args[0], len)) = '\0';
+	memcpy(data_file_path, al->args[0], len);
+	data_file_path[len] = '\0';
 	if (verbosity > 1) printf("Using database path: \"%s\"\n", data_file_path);
 	return true;
 }
@@ -679,7 +681,8 @@ bool handle_wallpaper_path(const arg_list_t * const al) {
 	}
 	wallpaper_path = (file_path_t)malloc(len+1);
 	//strcpy(wallpaper_path, al->args[0]);
-	*((char*)mempcpy(wallpaper_path, al->args[0], len)) = '\0';
+	memcpy(wallpaper_path, al->args[0], len);
+	wallpaper_path[len] = '\0';
 	if (verbosity > 1) printf("Using specified wallpaper path: \"%s\"\n", wallpaper_path);
 	return true;
 }
