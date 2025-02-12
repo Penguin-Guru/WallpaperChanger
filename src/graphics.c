@@ -146,7 +146,7 @@ bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_
 	if (!atom_r) {
 		static const char *text = "(No reply to atom name query)";
 		assert(strlen(text) <= MAX_ATOM_NAME_LEN);
-		strcpy(name, text);
+		strcpy(name, text);	// Copying literal.
 		return false;
 	} else {
 		if (err) handle_error(conn, err);
