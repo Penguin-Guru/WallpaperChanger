@@ -115,7 +115,8 @@ if ((! param_again)); then
 	done
 
 	declare src_files=" $SourcePath/${Exe##*/}.c"*' '
-	declare all_param_string=" -std=c23 $debug_string $error_handling_string $include_string $libs_string -o ${Exe##*/}"
+	#declare all_param_string=" -std=c23 $debug_string $error_handling_string $include_string $libs_string -o ${Exe##*/}"
+	declare all_param_string=" -std=gnu23 $debug_string $error_handling_string $include_string $libs_string -o ${Exe##*/}"
 	declare -a cmd=($prog $src_files $all_param_string)
 	if [[ -f "$Exe" ]]; then rm "$Exe"; fi
 	if ((param_print_command)); then

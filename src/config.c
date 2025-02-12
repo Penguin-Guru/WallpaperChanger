@@ -1,4 +1,7 @@
 
+#define _XOPEN_SOURCE
+#define _GNU_SOURCE	// For strchrnul. Probably supersedes _XOPEN_SOURCE.
+
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>	// For free.
@@ -33,7 +36,7 @@ bool parse_line(const char * const line) {
 
 		// Now we know how many terms/arguments the operation/parameter expects.
 		param_arg_ct etc = param->arg_params.max;
-		argument args[etc] = {};
+		argument args[etc];
 
 		// Parse the terms/arguments.
 		char *buff = NULL, *saveptr;
@@ -63,6 +66,9 @@ bool parse_line(const char * const line) {
 				etc
 			);
 			return false;
+		}
+		if (arg_ct < etc) {
+			for (param_arg_ct i = arg_ct; i < etc; i++) args[i] = NULL;
 		}
 
 		// Register the operation/parameter for execution.

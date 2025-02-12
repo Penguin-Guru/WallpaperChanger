@@ -1,3 +1,7 @@
+
+#define _XOPEN_SOURCE
+#define _GNU_SOURCE	// For strlcpy. Probably supersedes _XOPEN_SOURCE.
+
 #include <string.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_image.h>
