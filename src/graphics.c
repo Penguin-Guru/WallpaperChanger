@@ -1,3 +1,21 @@
+#ifdef __has_include
+#	if ! __has_include(<xcb/xcb.h>)
+#		warning "System does not appear to have a necessary library: \"<xcb/xcb.h>\""
+#	endif	// <xcb/xcb.h>
+#	if ! __has_include(<xcb/xcb_image.h>)
+#		warning "System does not appear to have a necessary library: \"<xcb/xcb_image.h>\""
+#	endif	// <xcb/xcb_image.h>
+#	if ! __has_include(<xcb/randr.h>)
+#		warning "System does not appear to have a necessary library: \"<xcb/randr.h>\""
+#	endif	// <xcb/randr.h>
+#	if ! __has_include(<xcb/xcb_util.h>)
+#		warning "System does not appear to have a necessary library: \"<xcb/xcb_util.h>\""
+#	endif	// <xcb/xcb_util.h>
+#	if ! __has_include(<xcb/xcb_errors.h>)
+#		warning "System does not appear to have a necessary library: \"<xcb/xcb_errors.h>\""
+#	endif	// <xcb/xcb_errors.h>
+#endif	// __has_include
+
 
 #include <string.h>
 #include <xcb/xcb.h>

@@ -1,3 +1,10 @@
+#ifdef __has_include
+#	if ! __has_include(<FreeImage.h>)
+#		warning "System does not appear to have a necessary library: \"<FreeImage.h>\""
+#	endif	// <FreeImage.h>
+#endif	// __has_include
+
+
 //#include <fstream>	// ?
 #include <string.h>	// ?
 #include <stdlib.h>	// For malloc and free.
