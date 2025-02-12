@@ -20,9 +20,11 @@
 
 bool parse_line(const char * const line) {
 	char *op;
-	if (op = strpbrk(line, KEY_VALUE_DELIMS)) {
-		char label[op - line + 1];
-		strlcpy(label, line, op - line + 1);
+	if ((op = strpbrk(line, KEY_VALUE_DELIMS))) {
+		uint_fast16_t len = op - line;	// Data type limits max row length.
+		char label[len];
+		memcpy(label, line, len);
+		label[len] = '\0';
 
 		// Identify the operation/parameter (label).
 		parameter_t *param = NULL;

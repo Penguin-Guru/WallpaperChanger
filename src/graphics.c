@@ -1,7 +1,4 @@
 
-#define _XOPEN_SOURCE
-#define _GNU_SOURCE	// For strlcpy. Probably supersedes _XOPEN_SOURCE.
-
 #include <string.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_image.h>
@@ -165,11 +162,9 @@ bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_
 			);
 			return false;
 		}
-		//strcpy(name, xcb_get_atom_name_name(atom_r));
-		//strncpy(name, xcb_get_atom_name_name(atom_r), length);
-		//strncpy(name, xcb_get_atom_name_name(atom_r), MAX_ATOM_NAME_LEN);
-		// strcpy and strncpy introduce erroneous values in some cases. I'm not sure why.
-		strlcpy(name, xcb_get_atom_name_name(atom_r), length + 1);
+		memcpy(name, xcb_get_atom_name_name(atom_r), length);
+		assert(name[length - 1] == '\0');
+		name[length] = '\0';	// Hopefully not necessary.
 		return true;
 	}
 }
@@ -608,11 +603,13 @@ monitor_list const get_monitor_info() {
 			.offset_x = m.data->x,
 			.offset_y = m.data->y
 		};
-		strlcpy(
-			ret.monitor[ret.ct++].name,
+		memcpy(
+			ret.monitor[ret.ct].name,
 			xcb_get_atom_name_name(anr),
 			name_length
 		);
+		assert(ret.monitor[ret.ct].name[name_length - 1] == '\0');
+		ret.monitor[ret.ct++].name[name_length] = '\0';	// Hopefully not necessary.
 		free(anr);
 	}
 
