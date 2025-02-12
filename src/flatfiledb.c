@@ -1,3 +1,10 @@
+#ifdef __has_include
+#	if ! __has_include(<unistd.h>)
+#		error "System does not appear to have a necessary library: \"<unistd.h>\""
+#	endif	// <unistd.h>
+#endif	// __has_include
+
+
 #include <string.h>	// Debugging.
 #include <stdio.h>	// Debugging.
 #include <stdlib.h>

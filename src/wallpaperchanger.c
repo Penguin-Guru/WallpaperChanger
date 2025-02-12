@@ -1,5 +1,19 @@
 #define _GNU_SOURCE	// For strchrnul.
 
+
+#ifdef __has_include
+#	if ! __has_include(<ftw.h>)
+#		error "System does not appear to have a necessary library: \"<ftw.h>\""
+#	endif	// <ftw.h>
+#	if ! __has_include(<magic.h>)
+#		error "System does not appear to have a necessary library: \"<magic.h>\""
+#	endif	// <magic.h>
+#	if ! __has_include(<unistd.h>)
+#		error "System does not appear to have a necessary library: \"<unistd.h>\""
+#	endif	// <unistd.h>
+#endif	// __has_include
+
+
 #include <string.h>
 #include <ftw.h>	// Used for finding new wallpapers.
 //#include <dirent.h>	// Used for finding new wallpapers.
