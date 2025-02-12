@@ -25,11 +25,11 @@ A config file is supported if useful. By default, the file should be `$XDG_CONFI
 
 Wallpaper file paths must not contain semicolons. This is typically disallowed by operating systems anyway.
 
-## How to use it:
+## Requirements:
 
-This will only work on (more or less) POSIX systems and will probably only work on linux. Those are because it currently uses unistd.h, magic.h, and _GNU_SOURCE. I have only tested it with Xorg but it might work with Wayland.
+This will only work on (more or less) POSIX systems and I have only tested it on Linux. I have also only tested it with Xorg, but it *might* work with Wayland.
 
-### Libraries required:
+### Libraries:
 - xcb
 - xcb-image
 - xcb-randr
@@ -37,15 +37,20 @@ This will only work on (more or less) POSIX systems and will probably only work 
 - xcb-errors
 - FreeImage (for reading in image files)
 
+### More libraries (you probably already have):
+- unistd.h
+- magic.h
+- glibc >= 2.38 (or something similar that provides strchrnul)
+
 ### Tool chain:
 - I have only tried compiling this with G.C.C. That is what the build script uses.
-- You may need Bash to run the build script.
+- You *may* need Bash to run the build script.
 
 ### Compilation:
 
 I have included the lazy Bash script I used for development, "[redo.sh](redo.sh)". If you have all the dependencies installed, you *should* be able to compile the program simply by running the script. If that fails, you should also be able to see the commands it would run by providing the word `print` as a parameter. The script also supports a few other convenience features for development. By default, the program will be built for debugging. To optimise for production, provide the build script with the word `production` as a parameter.
 
-Depending on how your system libraries are packages, you may need to change the library names in the build script. They are defined with other would-be constants near the top of the script.
+Depending on how your system libraries are packaged, you may need to change the library names in the build script. They are defined with other would-be constants near the top of the script.
 
 ## Development:
 
