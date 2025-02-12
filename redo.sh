@@ -1,6 +1,8 @@
 #!/bin/bash
 
-declare WD="${0%/*}"
+## https://stackoverflow.com/questions/59895/how-do-i-get-the-directory-where-a-bash-script-is-located-from-within-the-script
+#WD=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+WD=$(dirname -- "${BASH_SOURCE[0]}")
 declare SourcePath="$WD/src"
 declare IncludePath="$WD/include"
 declare Exe="$WD/wallpaperchanger"
