@@ -11,7 +11,20 @@
 #if (__STDC_VERSION__ < 202000)
 #	warning "This program was written for C23."
 #endif
-#if !( defined(__FreeBSD__) || defined(__NetBSD__) || (defined(__GLIBC__) && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38) || __GLIBC__ > 2)) )
+#if !(\
+	   defined(__FreeBSD__) \
+	|| defined(__NetBSD__)  \
+	|| (\
+		defined(__GLIBC__) \
+		&& (\
+			__GLIBC__ > 2 \
+			|| (\
+				   __GLIBC__ == 2        \
+				&& __GLIBC_MINOR__ >= 38 \
+			)\
+		)\
+	)\
+)
 #	error "System does not appear to offer strchrnul."
 #endif
 
