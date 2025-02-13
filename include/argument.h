@@ -9,5 +9,5 @@ typedef struct {
 } arg_list_t;
 
 void free_args(arg_list_t * const al);
-void reset_args_buffer(arg_list_t * const al);
+void reset_args_buffer(arg_list_t * const al);	// Used for hand-off without freeing memory.
 

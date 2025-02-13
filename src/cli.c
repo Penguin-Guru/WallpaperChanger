@@ -1,4 +1,4 @@
-#include <stdio.h>	// Remove later.
+#include <stdio.h>
 #include <stdlib.h>	// For malloc.
 #include <string.h>
 #include <assert.h>
@@ -37,7 +37,8 @@ static inline void print_arg_mismatch(param_name name, const param_arg_parameter
 
 parameter_t *param_buff = NULL;
 // Using the heap like this feel very inefficient, but I'm not sure of a better way to avoid arbitrary length limits.
-arg_list_t args_buff = {};	// Heap currently realloc'd to accommodate each new argument per parameter.
+// args_buff is currently realloc'd to accommodate each new argument per parameter. Optimise later.
+arg_list_t args_buff = {};
 
 static inline bool push_param_buff() {	// For parameters with arguments.
 	assert(param_buff);
@@ -65,7 +66,6 @@ static inline bool push_param(parameter_t *param) {
 static inline bool push_param_if_terms_pending(const uint_fast8_t terms_pending, parameter_t *param) {
 	assert(terms_pending >= 0);
 	if (terms_pending == 0) return true;
-	// It would be nice if this could be moved to init, so it could also be used when parsing config files.
 	if (args_buff.ct < param_buff->arg_params.min) {
 		// A flag was not expected. Missing term(s).
 		print_arg_mismatch(
@@ -81,7 +81,8 @@ static inline bool push_param_if_terms_pending(const uint_fast8_t terms_pending,
 }
 
 static bool match_short_param(short_flag_t arg) {
-	for (param_ct i = 0; i < num_params_known; i++) {	// Support multi-character short flags-- for now.
+	// Support multi-character short flags (for now).
+	for (param_ct i = 0; i < num_params_known; i++) {
 		parameter_t * const check_param = &params_known[i];
 		if (
 			check_param->flag_pair.short_flag != NULL
@@ -141,17 +142,12 @@ bool parse_params(int argc, char** argv) {
 					return false;
 				}
 				size_t len = strlen(argvi);
-				// Assuming len > 0. Is this safe?
+				if (len == 0) {
+					fprintf(stderr, "Ignoring empty string parameter (%hu).\n", i);
+					continue;
+				}
 
 				char *arg_buff = (char*)malloc(len+1);
-				/*char *pos;
-				if (! (pos = mempcpy(arg_buff, argvi, len))) {
-					fprintf(stderr, "Invalid mempcpy. Something has gone terribly wrong.\n");
-					free_param_args(num_args_buffered, args_buff);
-					return false;
-				}
-				*pos = '\0';*/
-				//*((char*)mempcpy(arg_buff, argvi, len)) = '\0';
 				memcpy(arg_buff, argvi, len);
 				arg_buff[len] = '\0';
 
@@ -170,7 +166,8 @@ bool parse_params(int argc, char** argv) {
 		// We now know that the parameter is a flag-- it begins with a '-' character.
 		push_param_if_terms_pending(terms_pending, param_buff);
 		if (argvi[1] == '-') {	// Long form flag ("--").
-			if (argvi[2] == 0) return true;	// Parameter is only two hyphens-- respect convention to stop processing parameters.
+			// If parameter is only two hyphens, respect convention to stop processing parameters.
+			if (argvi[2] == 0) return true;
 			long_flag_t arg = strdup(argvi+2);
 			if (!match_long_param(arg)) {
 				free(arg);

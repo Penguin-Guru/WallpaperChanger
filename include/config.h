@@ -1,8 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
 #include "util.h"
-#include "argument.h"
-#include "parameter.h"
 
 
 bool parse_line(const char * const line);

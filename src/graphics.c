@@ -21,16 +21,13 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_image.h>
 #include <xcb/randr.h>
-#include <xcb/xcb_util.h>
 #include <xcb/xcb_errors.h>
-//#include <xcb/xcbext.h>
 #include <stdlib.h>	// For free.
 #include <stdio.h>	// For fprintf.
 #include <assert.h>
 #include "graphics.h"
 #include "image.h"
 #include "verbosity.h"
-//#include "util.h"
 
 
 static const uint_fast8_t MAX_ATOM_NAME_LEN = 100;
@@ -56,7 +53,6 @@ typedef struct XY_Dimensions {
 
 
 static xcb_connection_t *conn = 0;
-//static uint16_t max_req_len;
 static xcb_generic_error_t *error;
 static xcb_void_cookie_t cookie;
 static xcb_screen_t *screen;
@@ -208,7 +204,6 @@ xcb_get_property_reply_t* get_property_reply(
 		);
 		return NULL;
 	}
-	xcb_aux_sync(conn);	// Not sure if necessary.
 	xcb_flush(conn);	// Probably not necessary.
 
 	xcb_get_property_reply_t *prop_r;
@@ -247,7 +242,6 @@ bool init_xcb() {
 
 	// https://xcb.freedesktop.org/manual/structxcb__setup__t.html
 	const xcb_setup_t *setup = xcb_get_setup(conn);
-	//max_req_len = setup->maximum_request_length;	// Querying explicitly yields much larger value.
 	{
 		uint8_t tmp = setup->image_byte_order;
 		if (!(tmp == 0 || tmp == 1)) {
@@ -862,6 +856,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 //bool write_to_pixmap(xcb_pixmap_t p, image_t *img) {
 bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const monitor) {
 	// References:
+	// 	https://codebrowser.dev/qt6/include/xcb/xcb_image.h.html
 	// 	http://metan.ucw.cz/blog/things-i-wanted-to-know-about-libxcb.html
 	// 	https://gitlab.freedesktop.org/cairo/cairo/-/blob/8d6586f49f1c977318af7f7f9e4f24221c9122fc/src/cairo-xcb-connection-core.c#L104-144
 	// 	https://github.com/ImageMagick/cairo/blob/5633024ccf6a34b6083cba0a309955a91c619dff/src/cairo-xcb-connection-core.c#L105
@@ -875,423 +870,215 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 	// 		This is apparently also why the max length is 262kB (65<<2).
 	// 		https://www.x.org/releases/current/doc/bigreqsproto/bigreq.html
 	// 	https://github.com/gnsmrky/wsl-vulkan-mesa
+
+	assert(img->pixels);
+
+	// Data must be sent in chunks smaller than the server's maximum. Get those parameters:
+	// We could have saved max_req_len from setup->maximum_request_length. Getting it here seems cleaner.
+	const uint32_t max_req_len = xcb_get_maximum_request_length(conn);
 	const uint32_t req_len = sizeof(xcb_put_image_request_t);
-	//const uint32_t req_len = 18;
-	//size_t data_len = (img->scan_width * img->height);	// In 8-bit bytes!
-	//uint32_t data_len = (img->scan_width * img->height);	// Is my scan_width equivalent to Cairo's stride?
-	//uint32_t data_len = (img->bytes_per_row * img->height);	// Is my bytes_per_row equivalent to Cairo's stride?
-	//size_t data_len = (img->scan_width * img->height);	// Is my scan_width equivalent to Cairo's stride?
-	//const uint32_t len = (req_len + data_len) >> 2;	// Bit shift converts number of 8-bit bytes to number of 32-bit words.
 	const size_t len = (req_len + img->data_len) >> 2;	// Bit shift converts number of 8-bit bytes to number of 32-bit words.
-	//const size_t len = req_len + data_len;
-	//const uint64_t max_req_len = xcb_get_maximum_request_length(conn);
-	//printf("max_req_len: %u\n", max_req_len);
-	const uint32_t max_req_len = xcb_get_maximum_request_length(conn);	// This is the length in 8-bit bytes?
 
 
-	// Testing:
-	//bits_per_pixel = img->scan_width / img->width;
-	scanline_unit = 0;	// Testing based on ZPixmap case in xcb_image_create_native().
-		// xcb_image_t definition in xcb_image.h says: ZPixmap (bpp!=1): will be max(8,bpp). Must be >= bpp.
-	//scanline_pad = 24;
-	//byte_order = XCB_IMAGE_ORDER_MSB_FIRST;
-	bit_order = XCB_IMAGE_ORDER_MSB_FIRST;	// Texting based on ZPixmap case in xcb_image_create_native().
-	char byte_order_text[30], bit_order_text[30];
-	switch (byte_order) {
-		case 0: strncpy(byte_order_text, "XCB_IMAGE_ORDER_LSB_FIRST", 30); break;
-		case 1: strncpy(byte_order_text, "XCB_IMAGE_ORDER_MSB_FIRST", 30); break;
-		default: strncpy(byte_order_text, "INVALID!", 30);
+	if (verbosity >= 3) {
+		char byte_order_text[30], bit_order_text[30];
+		switch (byte_order) {
+			case 0: strncpy(byte_order_text, "XCB_IMAGE_ORDER_LSB_FIRST", 30); break;
+			case 1: strncpy(byte_order_text, "XCB_IMAGE_ORDER_MSB_FIRST", 30); break;
+			default: strncpy(byte_order_text, "INVALID!", 30);
+		}
+		switch (bit_order) {
+			case 0: strncpy(bit_order_text, "XCB_IMAGE_ORDER_LSB_FIRST", 30); break;
+			case 1: strncpy(bit_order_text, "XCB_IMAGE_ORDER_MSB_FIRST", 30); break;
+			default: strncpy(bit_order_text, "INVALID!", 30);
+		}
+		char image_format_text[30];
+		switch (image_format) {
+			case 0: strncpy(image_format_text, "XCB_IMAGE_FORMAT_XY_BITMAP", 30); break;
+			case 1: strncpy(image_format_text, "XCB_IMAGE_FORMAT_XY_PIXMAP", 30); break;
+			case 2: strncpy(image_format_text, "XCB_IMAGE_FORMAT_Z_PIXMAP", 30); break;
+			default: strncpy(image_format_text, "INVALID!", 30);
+		}
+		printf(
+			"xcb_image_create("
+				"\n\twidth:  %u"
+				"\n\theight: %u"
+				"\n\tformat: %u (%s)"
+				"\n\tdepth: %u"
+				"\n\tbits_per_pixel: %hhu"
+				"\n\tscanline_unit:  %hhu"
+				"\n\tscanline_pad: %hhu"
+				"\n\tbyte_order: %u (%s)"
+				"\n\tbit_order:  %u (%s)"
+				"\n\tsize: %zd"
+				"\n)\n",
+			img->width,
+			img->height,
+			image_format, image_format_text,
+			depth,
+			bits_per_pixel,
+			scanline_unit,
+			scanline_pad,
+			byte_order, byte_order_text,
+			bit_order, bit_order_text,
+			img->data_len
+		);
 	}
-	switch (bit_order) {
-		case 0: strncpy(bit_order_text, "XCB_IMAGE_ORDER_LSB_FIRST", 30); break;
-		case 1: strncpy(bit_order_text, "XCB_IMAGE_ORDER_MSB_FIRST", 30); break;
-		default: strncpy(bit_order_text, "INVALID!", 30);
-	}
-	char image_format_text[30];
-	switch (image_format) {
-		case 0: strncpy(image_format_text, "XCB_IMAGE_FORMAT_XY_BITMAP", 30); break;
-		case 1: strncpy(image_format_text, "XCB_IMAGE_FORMAT_XY_PIXMAP", 30); break;
-		case 2: strncpy(image_format_text, "XCB_IMAGE_FORMAT_Z_PIXMAP", 30); break;
-		default: strncpy(image_format_text, "INVALID!", 30);
-	}
-	if (verbosity > 1) printf(
-		"xcb_image_create("
-			"\n\twidth:  %u"
-			"\n\theight: %u"
-			"\n\tformat: %u (%s)"
-			"\n\tdepth: %u"
-			"\n\tbits_per_pixel: %hhu"
-			"\n\tscanline_unit:  %hhu"
-			"\n\tscanline_pad: %hhu"
-			"\n\tbyte_order: %u (%s)"
-			"\n\tbit_order:  %u (%s)"
-			"\n\tsize: %zd"
-			"\n)\n",
-		img->width,
-		img->height,
-		image_format, image_format_text,
-		depth,
-		bits_per_pixel,
-		scanline_unit,
+	// These methods also work:
+	/*xcb_image_t *image = xcb_image_create(
+		img->width, img->height,	// Both in pixels. Do not include padding.
+		image_format,			// Format.
 		scanline_pad,
-		byte_order, byte_order_text,
-		bit_order, bit_order_text,
-		img->data_len
-	);
-	xcb_image_t *image = xcb_image_create(
-		img->width, img->height,	// Both in pixels-- should not include padding.
-		image_format,
-		scanline_pad,
-		depth,
+		depth,				// Depth.
 		bits_per_pixel,
 		scanline_unit,
 		byte_order,
 		bit_order,
-		img->pixels,	// Freed with xcb_image_destroy().
-		img->data_len,	// Not sure if safe to use source format rather than destination format.
-		img->pixels
-	);
+		img->pixels,			// "base" (freed by xcb_image_destroy).
+		img->data_len,			// Data length (bytes).
+		img->pixels			// Data.
+	);*/
 	/*xcb_image_t *image = xcb_image_create_native(conn,
-		img->width, img->height,	// Width, Height.
+		img->width, img->height,	// Both in pixels. Do not include padding.
 		image_format,			// Format.
 		depth,				// Depth.
-		/*NULL, 				// "base".
-		0,			 	// Data length (bytes).
-		NULL				// Data.*//*
-		img->pixels,			// "base".
+		img->pixels,			// "base" (freed by xcb_image_destroy).
 		img->data_len,		 	// Data length (bytes).
 		img->pixels			// Data.
 	);*/
+	xcb_image_t *image = xcb_image_create_native(conn,
+		img->width, img->height,	// Both in pixels. Do not include padding.
+		image_format,			// Format.
+		depth,				// Depth.
+		NULL, 				// "base" (freed by xcb_image_destroy).
+		0,			 	// Data length (bytes).
+		NULL				// Data.
+	);
 	if (!image) {
 		fprintf(stderr, "Failed to load image.\n");
 		return false;
 	}
-	//image->data = img->pixels;
-	if (!image->data) {
-		fprintf(stderr, "Failed to get image data.\n");
-		xcb_image_destroy(image);	// Not sure if this should be used.
-		return false;
-	}
-	//xcb_image_native(conn, image, true);
+	image->data = img->pixels;	// Only assigned like this when "data" field was NULL.
+	assert(image->data);
 	if (xcb_image_native(conn, image, false)) {
-		if (verbosity > 1) printf("Image loaded in native format.\n");
+		if (verbosity >= 3) printf("Image loaded in native format.\n");
 	} else {
 		if (verbosity > 0) fprintf(stderr, "Image loaded is not in native format.\n");
 
-		/*if (xcb_image_t *tmp = xcb_image_native(conn, image, true)) {*/
 		xcb_image_t *tmp;
-		if (tmp = xcb_image_native(conn, image, true)) {
-			if (tmp != image) {
-				if (verbosity > 0 && tmp->data == image->data) printf("tmp->data == image->data\n");
-				xcb_image_destroy(image);
-				image = tmp;
-				if (!image->data) {
-					fprintf(stderr, "image->data deleted. Aborting.\n");
-					return false;
-				}
-				if (verbosity > 1) printf(
-					"Converting:\n"
-						"\t       width: %hu --> %hu\n"
-						"\t      height: %hu --> %hu\n"
-						"\t      format: %u --> %u\n"
-						"\tscanline_pad: %hhu --> %hhu\n"
-						"\t       depth: %hhu --> %hhu\n"
-						"\t         bpp: %hhu --> %hhu\n"
-						"\t        unit: %hhu --> %hhu\n"
-						"\t  plane_mask: %u --> %u\n"
-						"\t  byte_order: %u --> %u\n"
-						"\t   bit_order: %u --> %u\n"
-						"\t      stride: %u --> %u\n"
-						"\t        size: %u --> %u\n"
-					,
-					image->width, tmp->width,
-					image->height, tmp->height,
-					image->format, tmp->format,
-					image->scanline_pad, tmp->scanline_pad,
-					image->depth, tmp->depth,
-					image->bpp, tmp->bpp,
-					image->unit, tmp->unit,
-					image->plane_mask, tmp->plane_mask,
-					image->byte_order, tmp->byte_order,
-					image->bit_order, tmp->bit_order,
-					image->stride, tmp->stride,
-					image->size, tmp->size
-				);
+		if ((tmp = xcb_image_native(conn, image, true))) {
+			if (tmp == image) {
+				fprintf(stderr, "Conversion failed.\n");
+				//xcb_image_destroy(image);	// Automatic?
+				return false;
 			}
+			assert(tmp);
+			xcb_image_destroy(image);	// Destroy the non-native version.
+			image = tmp;
+			if (verbosity > 1) printf(
+				"Converting:\n"
+					"\t       width: %hu --> %hu\n"
+					"\t      height: %hu --> %hu\n"
+					"\t      format: %u --> %u\n"
+					"\tscanline_pad: %hhu --> %hhu\n"
+					"\t       depth: %hhu --> %hhu\n"
+					"\t         bpp: %hhu --> %hhu\n"
+					"\t        unit: %hhu --> %hhu\n"
+					"\t  plane_mask: %u --> %u\n"
+					"\t  byte_order: %u --> %u\n"
+					"\t   bit_order: %u --> %u\n"
+					"\t      stride: %u --> %u\n"
+					"\t        size: %u --> %u\n"
+				,
+				image->width, tmp->width,
+				image->height, tmp->height,
+				image->format, tmp->format,
+				image->scanline_pad, tmp->scanline_pad,
+				image->depth, tmp->depth,
+				image->bpp, tmp->bpp,
+				image->unit, tmp->unit,
+				image->plane_mask, tmp->plane_mask,
+				image->byte_order, tmp->byte_order,
+				image->bit_order, tmp->bit_order,
+				image->stride, tmp->stride,
+				image->size, tmp->size
+			);
+			assert(image->data && "image->data not converted.");
 		} else {
 			fprintf(stderr, "Conversion failed.\n");
-			xcb_image_destroy(image);	// Not sure if this should be used.
-			return false;
-		}
-		if (xcb_image_native(conn, image, false)) {	// Double check validity, since I'm not confident I understand how this works.
-			if (verbosity > 1) printf("Conversion succeeded.\n");
-		} else {
-			fprintf(stderr, "Conversion failed.\n");
-			xcb_image_destroy(image);	// Not sure if this should be used.
+			//xcb_image_destroy(image);	// Automatic?
 			return false;
 		}
 	}
 
 
-	/*unsigned short dst_x = 0, dst_y = 0;
-	if (img->width != target_width) {
-		if (img->width < target_width) dst_x = (target_width - img->width) / 2;
-		else {
-			fprintf(stderr, "Target image is too large for the screen.\n");
-			return false;
-		}
-	}
-	if (img->height != target_height) {
-		if (img->height < target_height) dst_y = (target_height - img->height) / 2;
-		else {
-			fprintf(stderr, "Target image is too large for the screen.\n");
-			return false;
-		}
-	}*/
-
-
-	if (verbosity > 2) {
-		printf("Unshifted:\n\tmax: %ju\n\tlen: %zd (max-%zd)\n",	// Would represent the 8-bit data byte size?
-			(uintmax_t)max_req_len,
-			len,
-			(size_t)max_req_len - len
-		);
-		printf("Shifted:\n\tmax: %ju\n\tlen: %zd (max-%zd)\n",		// Would represent X11's 32-bit word size?
-			(uintmax_t)max_req_len <<2,
-			len<<2,
-			((size_t)max_req_len - len)<<2
-		);
-	}
+	if (verbosity >= 4) printf(
+		"32-bit words:\n"
+			"\tmax: %ju\n"
+			"\tlen: %zd (max-%zd)\n"
+		, (uintmax_t)max_req_len
+		, len, (size_t)max_req_len - len
+	);
 	if (len < max_req_len) {
-	//if (false) {
-		if (verbosity > 1) printf("Using non-buffered mode (len < max_req_len).\n");
-
-		//
-		// This method does not require data length or base to be specified.
-		//
-		// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.h.auto.html
-		// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.c.auto.html
-		/*xcb_image_t *image = xcb_image_create_native(conn,
-			img->width, img->height,	// Width, Height.
-			XCB_IMAGE_FORMAT_Z_PIXMAP,	// Format.
-			screen->root_depth,		// Depth.
-			*//*NULL, 				// "base".
-			0,			 	// Data length (bytes).
-			NULL				// Data.*//*
-			(uint8_t*)img->pixels,		// "base".
-			data_len,		 	// Data length (bytes).
-			(uint8_t*)img->pixels		// Data.
-		);
-		if (!image) {
-			fprintf(stderr, "Failed to load image.\n");
-			return false;
-		}
-		//image->data = img->pixels;
-		if (!image->data) {
-			fprintf(stderr, "Failed to get image data.\n");
-			return false;
-		}*/
-
-		/*cookie = xcb_image_put(conn,	// Load image into pixmap.
-			p,
-			//screen->default_colormap,
-			gc,
-			image,
-			0, 0,		// x, y
-			0
-		);*/
+		if (verbosity >= 2) printf("Using non-buffered mode (len < max_req_len).\n");
 		cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
 			image_format,				// format
 			p,					// drawable
-			//screen->default_colormap,		// gc
 			gc,					// gc
-			//img->width, img->height,		// width, height
-			//img->scan_width, img->height,		// width, height
 			image->width, image->height,		// width, height
 			//0, 0,					// dst_x, dst_y
 			monitor->offset_x, monitor->offset_y,	// dst_x, dst_y
 			0,					// left_pad
 			//screen->root_depth,			// depth
 			image->depth,				// depth
-			//img->data_len,			// data_len
 			image->size,				// data_len
-			//img->pixels				// data
 			image->data				// data
 		);
-		if ((error = xcb_request_check(conn, cookie))) {
-			fprintf(stderr, "Failed to put image.\n");
-			handle_error(conn, error);
-			xcb_image_destroy(image);
-			return false;
-		}
-		//xcb_flush(conn);
-		//xcb_image_destroy(image);	// Not sure if this should be used.
-
-
-		// 
-		// This method does not use create_native.
-		//
-		/*cookie = xcb_put_image_checked(conn,	// Load image into pixmap.
-			XCB_IMAGE_FORMAT_Z_PIXMAP,	// format
-			p,				// drawable
-			//screen->default_colormap,	// gc
-			gc,				// gc
-			img->width, img->height,	// width, height
-			0, 0,				// dst_x, dst_y
-			0,				// left_pad
-			screen->root_depth,		// depth
-			data_len,			// data_len
-			img->pixels			// data
-		);
-		if ((error = xcb_request_check(conn, cookie))) {
-			fprintf(stderr, "Failed to put image.\n");
-			*//*unsigned long i = 0;
-			//while (i < len) {
-			while (i < data_len) {
-				//printf("%lu: %x\n", i, (unsigned int)*(bits+i));
-				printf("%lu: %02x %02x %02x\n", i, (unsigned int)*(img->pixels+i++), (unsigned int)*(img->pixels+i++), (unsigned int)*(img->pixels+i++));
-				//i += bytes_per_pixel;
-			}*//*
-			//printf("%lu: %x\n", i, (unsigned int)*(bits+i));
-			handle_error(conn, error);
-			fprintf(stderr, "len < max_req_len\n");
-			std::cerr << "data_len: " << std::to_string(data_len) << std::endl;
-			std::cerr << "req_len: " << std::to_string(req_len) << std::endl;
-			std::cerr << "len: " << std::to_string(len) << std::endl;
-			return false;
-		}*/
-	} else {	// len >= max_req_len
-		if (verbosity > 1) printf("Using buffered mode (len >= max_req_len).\n");
-
-		//
-		// This method does not require data length or base to be specified.
-		//
-		/*xcb_image_t *tmp = xcb_image_create_native(conn,
-			img->width, img->height,	// Width, Height.
-			XCB_IMAGE_FORMAT_Z_PIXMAP,	// Format.
-			screen->root_depth,		// Depth.
-			NULL, 				// "base".
-			0,			 	// Data length (bytes).
-			NULL				// Data.
-		);
-		if (!tmp) {
-			fprintf(stderr, "Failed to load image.\n");
-			return false;
-		}
-		tmp->data = img->pixels;
-		if (!tmp->data) {
-			fprintf(stderr, "Failed to get image data.\n");
-			return false;
-		}*/
-
 		/*cookie = xcb_image_put(conn,	// Load image into pixmap.
-			p,
-			screen->default_colormap,
-			tmp,
+			p,		// dst (drawable)
+			gc,		// gc (ignored for XY and Z pixmap formats?)
+			image,		// src (xcb_image_t)
 			0, 0,		// x, y
-			0
-		);
+			0		// left_pad
+		);*/
 		if ((error = xcb_request_check(conn, cookie))) {
 			fprintf(stderr, "Failed to put image.\n");
 			handle_error(conn, error);
+			//xcb_image_destroy(image);	// Automatic?
+			return false;
 		}
-		xcb_image_destroy(tmp);	// Not sure if this should be used.*/
-
-
-		// 
-		// This method does not use create_native.
-		//
-		//const int rows_per_request = (max_req_len<<2 - req_len) / img->scan_width;
-		//const int rows_per_request = (max_req_len - req_len) / img->bytes_per_row;
-		//int y_off;
-		//int dst_y = 0;
-		//unsigned char *data_src = img->pixels;
+	} else {	// len >= max_req_len
+		if (verbosity >= 2) printf("Using buffered mode (len >= max_req_len).\n");
 		BYTE *data_src = image->data;
-		//int this_req_len, this_req_width, this_req_height;	// I'm hesitant to make this unsigned while testing.
 		int rows_remaining = image->height;
-		//unsigned int bytes_remaining = img->width * img->height * screen->root_depth;
-		//unsigned int bytes_remaining = data_len;
 		unsigned short req_num = 0;
-		//for (y_off = 0; y_off + rows_per_request < img_y; y_off += rows_per_request) {
-
-		//int rows = (max_req_len - req_len - 4) / img->scan_width;	// 32-bit word is 4* 8-bit bytes.
-		//int rows = (max_req_len<<2 - req_len - 4) / img->scan_width;	// 32-bit word is 4* 8-bit bytes.
-		//int rows = ( (max_req_len<<2) - req_len - 4) / img->scan_width;	// 32-bit word is 4* 8-bit bytes.
 		int rows = ( (max_req_len<<2) - req_len - 4) / image->stride;	// 32-bit word is 4* 8-bit bytes.
-			// Is my req_len equivalent to Cairo's req_size?
-			// Is my scan_width equivalent to Cairo's stride?
 		//for (y_off = 0; y_off + rows_per_request <= img->height; y_off += rows_per_request) {
 		if (rows <= 0) {
 			fprintf(stderr, "Error: rows <= 0\n");
-			xcb_image_destroy(image);
+			//xcb_image_destroy(image);	// Automatic?
 			return false;
 		}
 		do {
-			//if (rows > img->height) rows = img->height;
 			if (rows_remaining < rows) rows = rows_remaining;
-			//size_t data_len = rows * img->scan_width;	// rows*stride
 			size_t data_len = rows * image->stride;	// rows*stride
 			if (data_len + req_len >= max_req_len<<2) {
 				fprintf(stderr, "Data length is too long. Aborting.");
-				xcb_image_destroy(image);
+				//xcb_image_destroy(image);	// Automatic?
 				return false;
 			}
 
 			req_num++;
 			if (xcb_connection_has_error(conn)) {
 				fprintf(stderr, "Connection has error! (put request #%d)\n", req_num);
-				//xcb_disconnect(conn);
-				//free(img->pixels);
-					// The free() above causes an error. Is it in glibc?
-					// "corrupted size vs. prev_size while consolidating"
-				//free(img);
-				xcb_image_destroy(image);
+				// Image should be deleted automatically?
 				return false;
 			}
 
-			/*if (y_off + rows_per_request <= img_y) {
-				this_req_height = rows_per_request;
-				this_req_width = img_x;
-				this_req_len = bytes_per_row * rows_per_request;
-			} else {	// This never happens.
-				//this_req_len = img_y - y_off;
-				//this_req_len = ((img_y - y_off) * bytes_per_row) + req_len;
-				this_req_height = img_y - y_off;
-				this_req_width = img_x;
-				//this_req_width = this_req_height == 1 ? bytes_per_row -  : img_x;
-				this_req_len = (this_req_height * bytes_per_row);
-				//this_req_len = (this_req_height * bytes_per_row) + req_len;
-			}*/
-			/*if (bytes_remaining > img->width) {
-				this_req_width = img->width;
-				this_req_height = rows_per_request;
-			} else {
-				this_req_width = bytes_remaining;
-				this_req_height = 1;
-			}
-			//this_req_len = img->bytes_per_row * this_req_height;
-			this_req_len = this_req_width * this_req_height * screen->root_depth;
-			//this_req_len = img->bytes_per_row * rows_remaining;
-			//this_req_len = (y_off + this_req_height) * img->bytes_per_row;
-			cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
-				XCB_IMAGE_FORMAT_Z_PIXMAP,			// format
-				//XCB_IMAGE_FORMAT_XY_PIXMAP,			// format.
-				p,						// drawable
-				//screen->default_colormap,			// gc
-				gc,						// gc
-				this_req_width, this_req_height,		// width, height
-				//this_req_width, rows_remaining,			// width, height
-				0, y_off,					// dst_x, dst_y
-				0,						// left_pad
-				screen->root_depth,				// depth
-				this_req_len,					// data_len
-				img->pixels + (y_off * img->bytes_per_row)	// data
-			);*/
 			cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
 				image_format,						// format.
 				p,							// drawable
 				gc,							// gc
-				//img->width, rows,					// width, height
 				image->width, rows,					// width, height
 				//0, image->height - rows_remaining,			// dst_x, dst_y
 				monitor->offset_x,					// dst_x
@@ -1299,73 +1086,56 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 				0,							// left_pad
 				screen->root_depth,					// depth
 				data_len,						// data_len
-				//img->pixels + (data_len * req_num)			// data
 				data_src						// data
 			);
 			if ((error = xcb_request_check(conn, cookie))) {
 				fprintf(stderr, "Failed to put image.\n");
-				/*unsigned long i = 0;
-				//while (i < len) {
-				while (i < data_len) {
-					//printf("%lu: %x\n", i, (unsigned int)*(bits+i));
-					printf("%lu: %02x %02x %02x\n", i, (unsigned int)*(img->pixels+i++), (unsigned int)*(img->pixels+i++), (unsigned int)*(img->pixels+i++));
-					//i += bytes_per_pixel;
-				}*/
-				//printf("%lu: %x\n", i, (unsigned int)*(bits+i));
 				handle_error(conn, error);
-				fprintf(stderr, "len >= max_req_len\n");
-				fprintf(stderr, "Number of requests (up to and including failure): %d\n", req_num);
-				fprintf(stderr, "data_len: %ld (max-%ld)\n", data_len, max_req_len - data_len);
-				fprintf(stderr, "req_len: %d\n", req_len);
-				/*std::cerr << "len: " << std::to_string(len)
-					<< "  (max-" << std::to_string(max_req_len - len) << ")"
-				<< std::endl;*/
-				fprintf(stderr, "max_req_len:  %d\n", max_req_len);
-				//std::cerr << "this_req_len: " << std::to_string(this_req_len) << std::endl;
-				//std::cerr << "rows_per_request: " << std::to_string(rows_per_request) << std::endl;
-				fprintf(stderr, "rows requested: %d\n", rows);
-				fprintf(stderr, "rows_remaining: %d\n", rows_remaining);
-				//std::cerr << "dst_y: " << std::to_string(dst_y) << std::endl;
-				fprintf(stderr, "dst_y: %d\n", img->height - rows_remaining);
-				fprintf(stderr, "pixel_count: %d - %d / %d\n",
+				fprintf(stderr,
+					"monitor offset_y: %u\n"
+					"monitor height:   %u\n"
+					"Number of requests (up to and including failure): %d\n"
+					"data_len: %ld (max-%ld)\n"
+					"req_len:  %d\n"
+					"max_req_len: %d\n"
+					"rows requested: %d\n"
+					"rows_remaining: %d\n"
+					"dst_y (on monitor): %d\n"
+					, monitor->height
+					, monitor->offset_y
+					, req_num
+					, data_len, max_req_len - data_len
+					, req_len
+					, max_req_len
+					, rows
+					, rows_remaining
+					, image->height - rows_remaining
+				);
+				fprintf(stderr, "pixel_count (on monitor): %d - %d / %d\n",
 					img->width * (img->height - rows_remaining),
 					rows * img->width,
 					img->width * img->height
 				);
-				xcb_image_destroy(image);
+				//xcb_image_destroy(image);	// Automatic?
 				return false;
 			}
-			//rows_remaining -= this_req_height;
-			//bytes_remaining -= this_req_len;
 			rows_remaining -= rows;
-			//dst_y += rows;
 			data_src += data_len;
-			//data_src = (unsigned char*)data_src + data_len;
 		} while (rows_remaining);
-		if (verbosity > 2) printf("Number of requests: %u\n", req_num);
+		if (verbosity >= 3) printf("Number of requests: %u\n", req_num);
 	}
-	/*xcb_render_composite_checked(conn,
-		XCB_RENDER_PICT_OP_OVER,		// Operation (PICTOP).
-		img,					// Source (PICTURE).
-		img,					// Mask (PICTURE or NONE).
-		screen->root,				// Destination (PICTURE).
-		0, 0,					// Source start coordinates (INT16).
-		0, 0,					// Mask start coordinates (INT16)?
-		0, 0,					// Destination start coordinates (INT16).
-		//width, height				// Source dimensions to copy.
-		x, y					// Source dimensions to copy.
-	);
-	if ((err = xcb_request_check(conn, cookie))) {
-		cerr << "Failed to render composite image." << endl;
-		continue;
-	}*/
 
 	xcb_image_destroy(image);
 	return true;
 }
 bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * const monitor) {
-	if (!wallpaper_file_path || *wallpaper_file_path == '\0') return false;
-	if (!(conn || init_xcb())) return false;
+	assert(wallpaper_file_path);
+	assert(wallpaper_file_path[0] != '\0');
+	if (!(conn || init_xcb())) {
+		fprintf(stderr, "No connection to display server.\n");
+		return false;
+	}
+	assert(conn);
 	assert(screen);
 
 
@@ -1381,7 +1151,6 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// Adjust target dimensions to account for visible background area.
 	if (scale_for_wm) {
 		XY_Dimensions dock = {0};
-		// Should probably specify the target monitor.
 		get_dock_size(conn, &screen->root, &dock);
 		target_width -= dock.width;
 		target_height -= dock.height;
@@ -1400,9 +1169,9 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// Get pixmap to write into:
 	//
 
-	xcb_pixmap_t root_pixmap = 0;
-
+	xcb_pixmap_t root_pixmap;
 	bool use_preexisting_root_pixmap;
+
 	xcb_get_property_reply_t *esetroot_pmap_id_reply;
 	if ((esetroot_pmap_id_reply = get_property_reply(conn,
 		&screen->root, esetroot_pmap_id,
@@ -1441,8 +1210,6 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 		XCB_GC_FOREGROUND | XCB_GC_BACKGROUND,
 		gc_values
 	);
-	//gc = screen->root_visual;
-	//gc = screen->default_colormap;
 
 
 
@@ -1475,38 +1242,33 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 			target_height - img->height				// height
 		);
 	}
+
 	if (!write_to_pixmap(root_pixmap, img, monitor)) {
 		free(img);
 		return false;
 	}
-	// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.h.auto.html
-	// https://opensource.apple.com/source/X11libs/X11libs-60/xcb-util/xcb-util-0.3.6/image/xcb_image.c.auto.html
 	/*image_t *img = get_pixel_data(wallpaper_file_path);
 	gc = xcb_generate_id(conn);
+	// This assumes XBM format:
+	// 	8-bit scanline unit.
+	// 	LSB-first.
+	// 	8-bit pad.
 	xcb_pixmap_t p = xcb_create_pixmap_from_bitmap_data(conn,
-		screen->root,
-		img->pixels,
-		img->width, img->height,
-		//(unsigned char*)neko_bits,
-		//neko_width, neko_height,
-		//img->width * 3, img->height * 3,
-		//img->width * 24, img->height * 24,	// Segfaults.
-		//img->scan_width, img->height,
-		//img->width * 4, img->height * 4,
-		screen->root_depth,
-		screen->black_pixel,	// fg
-		screen->white_pixel,	// bg
-		&gc
+		screen->root,				// Parent (drawable).
+		img->pixels,				// Bitmap data.
+		img->width, img->height,		// Width and height (in bits).
+		screen->root_depth,			// Target depth.
+		screen->black_pixel,	// Foreground pixel (1 bits).
+		screen->white_pixel,	// Background pixel (0 bits).
+		&gc			// Graphical context to be created.
 	);
-	if (p) {
-		xcb_flush(conn);
-		free(img);
-		printf("New pixmap (p): \n\t  %u\n\t0x%x\n", p, p);
-	} else {
+	if (!p) {
 		free(img);
 		fprintf(stderr, "Failed to create pixmap from bitmap data.\n");
 		return false;
-	}*/
+	}
+	xcb_flush(conn);
+	printf("New pixmap (p): \n\t  %u\n\t0x%x\n", p, p);*/
 
 	free(img);
 	if (xcb_connection_has_error(conn)) {
@@ -1521,14 +1283,10 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 
 	// Prevent sending PropertyNotify event:
 	xcb_grab_server(conn);
-	const uint32_t values[] = {0};
 	xcb_change_window_attributes(conn,
 		screen->root,
 		XCB_CW_EVENT_MASK,
-		//(uint32_t[]) { 0 }
-		//NULL
-		//NO_EVENT_VALUE
-		values
+		(uint32_t[]){XCB_EVENT_MASK_NO_EVENT}
 	);
 	if (xcb_connection_has_error(conn)) {
 		fprintf(stderr, "Connection has error!\n");
@@ -1601,7 +1359,6 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	xcb_set_close_down_mode(conn, XCB_CLOSE_DOWN_RETAIN_PERMANENT);
 
 	// Complete.
-	xcb_aux_sync(conn);	// Not sure if necessary.
 	xcb_flush(conn);
 	return true;
 }

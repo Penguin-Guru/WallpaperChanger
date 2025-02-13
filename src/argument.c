@@ -11,7 +11,7 @@ inline void free_args(arg_list_t * const al) {
 	al->ct = 0;
 }
 
-inline void reset_args_buffer(arg_list_t * const al) {	// Used for hand-off without freeing memory.
+inline void reset_args_buffer(arg_list_t * const al) {
 	if (al == NULL) return;
 	al->ct = 0;
 	al->args = NULL;

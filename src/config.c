@@ -1,15 +1,24 @@
 
 #define _GNU_SOURCE	// For strchrnul.
 
+#ifdef __has_include
+#	if ! __has_include(<sys/stat.h>)
+#		error "System does not appear to have a necessary library: \"<sys/stat.h>\""
+#	endif	// <sys/stat.h>
+#endif	// __has_include
+
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>	// For free.
 #include <stdio.h>	// For fprintf.
 #include <assert.h>
+#include <stdint.h>
 #include <math.h>	// For powf.
 #include "config.h"
 #include "init.h"
 #include "verbosity.h"
+#include "argument.h"
+#include "parameter.h"
 
 #define SPACE_AND_TAB " \t"
 #define WHITESPACE_CHARACTERS SPACE_AND_TAB "\r\n\v\f"
@@ -110,21 +119,20 @@ size_t clip_trailing_chars(char *start, char *end, const char *chars) {
 bool parse_file(const file_path_t const file_path) {
 	// Not currently offering to create the file.
 
-	/*if (!access(file_path, F_OK)) {
-		fprintf(stderr, "Config file not accessible: \"%s\"\n", file_path);
-		return false;
-	}*/
-
 	struct stat info;
 	if (stat(file_path, &info)) {
-		fprintf(stderr, "Failed to read config file: \"%s\"\n", file_path);
+		fprintf(stderr, "Failed to stat config file at path: \"%s\"\n", file_path);
 		return false;
 	}
 	if (! (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode) )) {
 		fprintf(stderr, "Supposed config file is not a regular file or symlink: \"%s\"\n", file_path);
 		return false;
 	}
-	// Consider seeking default file name if non-default directory is specified without a file name.
+
+	/*if (!access(file_path, R_OK)) {
+		fprintf(stderr, "Denied permission to read config file: \"%s\"\n", file_path);
+		return false;
+	}*/
 
 
 	FILE *f = fopen(file_path, "r");
