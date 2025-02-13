@@ -107,7 +107,7 @@ size_t clip_trailing_chars(char *start, char *end, const char *chars) {
 	return 0;
 }
 
-bool parse_file(const file_path_t file_path) {
+bool parse_file(const file_path_t const file_path) {
 	// Not currently offering to create the file.
 
 	/*if (!access(file_path, F_OK)) {
