@@ -50,7 +50,7 @@ typedef struct {
 
 typedef char* const flag_t;
 // It may be more clear for flag_t to be renamed flag_value_t.
-typedef flag_t long_flag_t;	// Support multi-character short flags-- for now.
+typedef flag_t long_flag_t;	// Support multi-character short flags (for now).
 typedef flag_t short_flag_t;
 typedef struct {
 	const long_flag_t long_flag;
@@ -74,10 +74,13 @@ enum AppComponent {	// Bitmask of known components that may be loaded as needed.
 	// 32
 	// 64
 	// 128
-} __attribute__ ((__packed__));
+};
 #define APP_COMPONENT_CT 3	// Must match number of entries in AppComponent (above).
 typedef uint_fast8_t app_components_t;	// Bitmask.
-static_assert(APP_COMPONENT_CT <= 8*sizeof(app_components_t), "Data type of app_components_t is not big enough.");
+static_assert(	// Bitmask must offer one bit for each known component.
+	APP_COMPONENT_CT <= 8*sizeof(app_components_t),
+	"Data type of app_components_t is not big enough."
+);
 
 enum LoadSource {
 	NONE = 0,

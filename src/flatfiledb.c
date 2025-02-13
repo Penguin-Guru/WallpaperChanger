@@ -35,26 +35,6 @@ void print_current_timestamp(const char *TimestampFormat) {
 	printf("%s\n", buffer);
 };
 
-bool print_rows(const char* path) {
-	FILE *f = fopen(path, "r"); if (f==0) return false;
-	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
-	if (len == -1) {
-		fclose(f);
-		return false;
-	}
-
-	char *string = NULL;
-	size_t size = 0;
-	ssize_t chars_read;
-	while (getline(&string, &size, f) > 0) {
-		printf("%s", string);
-	}
-	free(string);
-
-	fclose(f);
-	return true;
-}
-
 void free_row(row_t *r) {
 	if (!r) return;
 	if (r->file) free(r->file);

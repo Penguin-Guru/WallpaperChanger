@@ -33,36 +33,35 @@ static const uint_fast16_t MAX_ROW_LENGTH = NUM_COLUMNS * (MAX_COLUMN_LENGTH + 1
 static const char Timestamp_Format[] = "%F@%T%z";
 void print_current_timestamp(const char *TimestampFormat);	// Has default value.
 
-enum Tag {	// Index is offset in bitmask.
-	TAG_CURRENT = 0,	// Currently the active wallpaper.
-	TAG_HISTORIC,	// Not the first time the wallpaper has been set.
-	TAG_FAVOURITE	// A personal favourite.
+enum Tag {	// Bitmask of known tags. Index is the bitmask's offset.
+	// Remember to update tags_known (below).
+	TAG_CURRENT = 0,	// Last recorded wallpaper set (per monitor).
+	TAG_HISTORIC,		// Not the first time the wallpaper has been set.
+	TAG_FAVOURITE		// User has marked wallpaper as a personal favourite.
 };
 typedef struct tag_t {
 	enum Tag id;
-	//const char text[Max_Tag_Len];
 	const char text[MAX_TAG_LENGTH];
 } tag_t;
 // Tags must appear in same order as enum due to use in get_current(). Fix later.
-// Number limited by bitmask (sizeof(tags_t)*CHAR_BIT).
-static const tag_t tags_known[] = {	// Must be keps in sync with Tag enum. Fix later.
+static const tag_t tags_known[] = {	// Must be kept in sync with Tag enum. Fix later.
 	(tag_t){TAG_CURRENT,	"current"},
 	(tag_t){TAG_HISTORIC,	"historic"},
-	//(tag_t){TAG_NEW,	"new"},
 	(tag_t){TAG_FAVOURITE,	"favourite"}
 };
-static const uint_fast8_t Max_Tag_String_Len = sizeof(tags_known)/sizeof(tags_known[0]) * (MAX_TAG_LENGTH + 1);	// +1 for commas.
+#define TAGS_KNOWN_CT sizeof(tags_known)/sizeof(tags_known[0])
+static_assert(	// Bitmask must offer one bit for each known tag.
+	TAGS_KNOWN_CT <= 8*sizeof(tags_t),
+	"Data type of tags_t is not big enough."
+);
+static const uint_fast8_t Max_Tag_String_Len = TAGS_KNOWN_CT * (MAX_TAG_LENGTH + 1);	// +1 for commas.
 
-//typedef char[MAX_TIMESTAMP_LENGTH] timestamp_t;
-//using tags = Tag[];
 typedef struct row_t {
 	timestamp_t ts; 
 	char *monitor_name;
-	file_path_t file;	// Not flexible anymore. Appears in file order.
+	file_path_t file;
 	tags_t tags;
-	//file_path_t file;	// Flexible-- must be at end of struct.
 } row_t;
-bool print_rows(const char* path);	// Only useful for testing?
 
 /*typedef struct file_t {
 	FILE *path;
@@ -104,7 +103,6 @@ rows_t* get_current(
 
 bool append_new_current(const file_path_t data_file_path, row_t *new_entry);
 
-//char* gen_tag_string(tags_t tags);
 void gen_tag_string(char *string, tags_t tags);
 num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod);
 

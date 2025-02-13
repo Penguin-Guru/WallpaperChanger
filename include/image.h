@@ -15,13 +15,6 @@ typedef struct {
 } image_t;
 
 
-/*typedef struct {
-	unsigned depth = 0;
-	unsigned width = 0;
-	unsigned height = 0;
-} screen_params;*/
-
-
 image_t* get_image_size(const char *wallpaper_file_path);
 
 image_t* get_pixel_data(

@@ -39,7 +39,7 @@ bool scale_for_wm = true;	// Scale wallpapers based on static, foreground window
 
 
 static monitor_list s_monitors;
-static uint32_t s_target_monitor_id = 0;	// xcb_randr_output_t
+static uint32_t s_target_monitor_id = 0;	// Monitor index, not xcb_randr_output_t.
 static const char *s_target_monitor_name = NULL;	// Reference user input after loading component.
 
 // Cache used by some functions:
