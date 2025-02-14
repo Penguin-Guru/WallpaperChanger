@@ -39,7 +39,8 @@
 #define DEFAULT_WALLPAPER_DIR_NAME "wallpapers"
 
 
-
+// Directory containing default data_file_path and wallpaper_path.
+// This is cached when needed.
 static file_path_t data_directory = NULL;
 
 static file_path_t

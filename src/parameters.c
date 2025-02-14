@@ -169,16 +169,17 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	// Init type parameters:
 	//
 
+	// Parameters defined by the main application:
 	{
 		.handler_set = (handler_set_t){
-			.name		= "config-file",
-			.description	= "Specify a (non-standard) config file to load.",
-			.fn		= handle_config_file,
+			.name		= "target_monitor",
+			.description	= "Specify UTF-8 name of monitor to target.",
+			.fn		= handle_target_monitor,
 			.arg_list	= 0	// Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "config-file",
-			.short_flag	= "c"
+			.long_flag	= "monitor",
+			.short_flag	= "m"
 		},
 		.arg_params = (param_arg_parameters_t){
 			.min		= 1,
@@ -270,16 +271,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		.requirements = COMPONENT_NONE,
 		.previous_load = NONE
 	},
+
+	// Parameters defined by the initialisation code:
 	{
 		.handler_set = (handler_set_t){
-			.name		= "target_monitor",
-			.description	= "Specify UTF-8 name of monitor to target.",
-			.fn		= handle_target_monitor,
+			.name		= "config-file",
+			.description	= "Specify a (non-standard) config file to load.",
+			.fn		= handle_config_file,
 			.arg_list	= 0	// Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "monitor",
-			.short_flag	= "m"
+			.long_flag	= "config-file",
+			.short_flag	= "c"
 		},
 		.arg_params = (param_arg_parameters_t){
 			.min		= 1,
@@ -331,5 +334,6 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 };
 
 const uint_fast8_t num_params_known = sizeof(params_known)/sizeof(params_known[0]);
-//static_assert(num_params_known > 0);
+// There is no point compiling this file without any parameters.
+static_assert(sizeof(params_known)/sizeof(params_known[0]) > 0, "No parameters were defined.");
 

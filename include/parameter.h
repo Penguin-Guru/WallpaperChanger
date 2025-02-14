@@ -57,6 +57,9 @@ typedef struct {
 	const short_flag_t short_flag;
 } flag_pair_t;
 
+// Parameters of each type are stored in separate handler set lists. This allows them to be...
+// 	Handled at different points within the program's execution.
+// 	Distributed independently to different parts of the program.
 enum ParamType {
 	INIT,
 	RUN

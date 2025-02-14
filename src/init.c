@@ -26,7 +26,8 @@ bool handle_config_file(const arg_list_t * const al) {
 	return true;
 }
 
-bool handle_print_help(const arg_list_t * const al) {	// Bool return only due to handler function pointer type.
+bool handle_print_help(const arg_list_t * const al) {
+	// Bool return type only due to type of handler function pointer. Not used.
 	assert(al == NULL);
 	printf("Parameters:\n");
 	for (param_ct i = 0; i < num_params_known; i++) {
@@ -61,14 +62,14 @@ void free_params(handler_set_list_t *list) {
 	free(list->hs);
 }
 bool register_param(parameter_t *p, const arg_list_t * const al, const enum LoadSource load_source) {
-	assert(al == NULL || al->ct > 0);	// Don't store empty containers.
+	assert(al == NULL || al->ct > 0);	// Don't pass around empty containers.
 	assert(!(al == NULL && p->arg_params.min != 0));
 	assert(
 		al == NULL
 		|| ((p->arg_params.min <= al->ct) && (al->ct <= p->arg_params.max))
 	);
 
-	// Each type is stored in a separate handler_set_list_t.
+	// Sort parameters into their respective categories:
 	handler_set_list_t *list = NULL;	// Not useful at the moment, but may be in the future.
 	switch (p->type) {
 		case RUN :
@@ -77,6 +78,7 @@ bool register_param(parameter_t *p, const arg_list_t * const al, const enum Load
 			break;
 		case INIT :
 			assert(p->requirements == COMPONENT_NONE);
+			// Init type parameters can be handled immediately.
 			if (load_source == CONFIG_FILE && p->previous_load == CLI) {
 				if (verbosity) printf("C.L.I. parameter over-riding config setting: \"%s\"\n", p->handler_set.name);
 				return true;	// This is not a failure case.
@@ -123,17 +125,12 @@ static void clean_up_init() {
 static inline const char* load_default_config_file() {
 	char *config_dir = get_xdg_config_home();
 	if (!config_dir) {
-		/*fprintf(stderr, "Init: Failed to identify config directory.\n");
-		return false;*/
 		return "Failed to identify config directory.";
 	}
 	const char *config_file_name = "/" DEFAULT_CONFIG_FILE_NAME;
 	size_t name_len = strlen(config_file_name);
 	size_t dir_len = config_dir == NULL ? 0 : strlen(config_dir);;
 	if (dir_len == 0) {
-		/*fprintf(stderr, "Init: Default config directory path is empty.\n");
-		free(config_dir);
-		return false;*/
 		free(config_dir);
 		return "Default config directory path is empty.";
 	}
@@ -141,16 +138,9 @@ static inline const char* load_default_config_file() {
 	// That +1 may or may not be necessary.
 	// For some reason, the terminating null seems to be counted in name_len. Something about synthetic pointers.
 
-	//stpcpy(config_path, config_dir);
-	//strncat(config_path, config_file_name, name_len);
-	//
-	//pos = (char*)mempcpy(config_path, config_dir, dir_len);
 	memcpy(config_path, config_dir, dir_len);
 	free(config_dir);
-	//
-	//*pos++ = '/';
-	/*pos = (char*)mempcpy(pos, config_file_name, name_len);
-	*pos = '\0';*/
+
 	memcpy(config_path + dir_len, config_file_name, name_len);
 	config_path[dir_len + name_len] = '\0';
 
@@ -158,34 +148,22 @@ static inline const char* load_default_config_file() {
 	arg_list_t this_is_stupid = {1, &silly};
 	handle_config_file(&this_is_stupid);
 
-	//return true;
-	return NULL;
+	return NULL;	// Success condition: no error message.
 }
 
 bool init(int argc, char** argv) {
 	atexit(clean_up_init);
-	//bool proceed = true;
 	const char *abort_msg = NULL;
 
 	if (!parse_params(argc, argv)) {	// Parsed first, so config file path can be overridden.
-		//fprintf(stderr, "Init: Failed to parse command-line parameters.\n");
-		//proceed = false;
 		abort_msg = "Failed to parse command-line parameters.";
 	}
 
-	// Note:
-	// 	Config files must be handled before the handler loop (below).
-	// 	This currently makes C.L.I. control of config file loading impossible.
-	// 	Fix later.
-	//if (proceed && num_config_files_loaded == 0) {	// Currently always true.
 	if (!abort_msg && num_config_files_loaded == 0) {	// Currently always true.
-		//if (!load_default_config_file) proceed = false;
+		// No need to pass pointer because all potential messages are literals.
 		abort_msg = load_default_config_file();
-		//load_default_config_file(abort_msg);
 	}
 
-	/*if (proceed) return true;
-	if (abort_msg) printf("%s", abort_msg);*/
 	if (abort_msg) {
 		fprintf(stderr, "%s\nInitialisation failed.\n", abort_msg);
 		return false;
