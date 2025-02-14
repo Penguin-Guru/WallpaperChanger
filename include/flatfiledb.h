@@ -73,8 +73,8 @@ typedef struct rows_t {
 	row_t** row;
 	num_rows ct;
 } rows_t;
-void free_row(row_t* r);
-void free_rows(rows_t* target);
+void free_rows_contents(rows_t* target);	// Free stack allocations.
+void free_rows(rows_t* target);			// Free heap allocations.
 
 
 
@@ -106,7 +106,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry);
 void gen_tag_string(char *string, tags_t tags);
 num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod);
 
-bool del_entry_by_tag(
+rows_t* del_entry_by_tag(
 	rows_t *ret_rows,
 	const file_path_t file_path,
 	tags_t *p_criteria,

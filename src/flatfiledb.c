@@ -35,18 +35,22 @@ void print_current_timestamp(const char *TimestampFormat) {
 	printf("%s\n", buffer);
 };
 
-void free_row(row_t *r) {
+static inline void free_row(row_t *r) {
 	if (!r) return;
 	if (r->file) free(r->file);
 	if (r->monitor_name) free(r->monitor_name);
 	free(r);
 }
-void free_rows(rows_t *target) {
+void free_rows_contents(rows_t *target) {
 	if (target == NULL) return;
-		for (num_rows i = 0; i < target->ct; i++) {
-			free_row(target->row[i]);
-		}
-		if (target->row) free(target->row);	// Should always be true.
+	for (num_rows i = 0; i < target->ct; i++) {
+		free_row(target->row[i]);
+	}
+	if (target->row) free(target->row);	// Should always be true.
+	// Not attempting to free target.
+}
+void free_rows(rows_t *target) {
+	free_rows_contents(target);
 	free(target);
 }
 
@@ -552,65 +556,79 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 	return true;
 }*/
 
-bool del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
+rows_t* del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
 	assert(!(n_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
-	assert(ret_rows != NULL);
+	bool allocated_ret;
+	if (ret_rows == NULL) {
+		if (!(ret_rows = malloc(sizeof(rows_t)))) {
+			fprintf(stderr, "Failed to allocate memory on heap.\n");
+			return NULL;
+		}
+		allocated_ret = true;
+	} else allocated_ret = false;
+	assert(ret_rows);
+	ret_rows->ct = 0;
 
-	FILE *f = fopen(file_path, "r"); if (f==0) return false;
+	FILE *f = fopen(file_path, "r"); if (f==0) return NULL;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
 		fclose(f);
-		return false;
+		return NULL;
 	}
 
 	char tmp_path[] = "/tmp/fileXXXXXX";
 	int fd = mkstemp(tmp_path);
 	close(fd);
-	if (!tmp_path) return false;
+	if (!tmp_path) return NULL;
 	FILE *tmp = fopen(tmp_path, "w");
 	if (tmp==0) {
 		fclose(f);
-		return false;
+		return NULL;
 	}
-
-	num_rows num_rows_deleted = 0;
 
 	char *string = NULL;
 	size_t size = 0;
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria, NULL) ) {
-			if (ret_rows->ct == 0) {
-				if (! (ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
-					fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);
-					free(string);
-					fclose(f);
-					return false;
-				}
-			} else {
-				void *tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*));
-				if (tmp) {
-					ret_rows->row = (row_t**)tmp;
-				} else {
-					fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
-					free(string);
-					fclose(f);
-					return false;
-				}
-			}
-			ret_rows->row[ret_rows->ct++] = row;
-			continue;	// Do not write matches to temp file.
+		if (!(row = get_row_if_match(++row_num, string, p_criteria, n_criteria, NULL))) {
+			// Row does not match. Ignore it.
+			fputs(string, tmp);
+			continue;
 		}
-		fputs(string, tmp);
+		// Row matches query-- do not write it to the temp file.
+		// Instead, we will load it onto the heap for return to caller.
+		if (ret_rows->ct == 0) {
+			if (!(ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
+				fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);
+				free(string);
+				fclose(f);
+				if (allocated_ret) free_rows(ret_rows);
+				else free_rows_contents(ret_rows);
+				return NULL;
+			}
+		} else {
+			void *tmp;
+			if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
+				fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
+				free(string);
+				fclose(f);
+				if (allocated_ret) free_rows(ret_rows);
+				else free_rows_contents(ret_rows);
+				return NULL;
+			}
+			if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
+		}
+		ret_rows->row[ret_rows->ct++] = row;
 	}
 	free(string);
 
 	fclose(f);
+	fclose(tmp);
 	if (rename(tmp_path, file_path)) {
 		fprintf(stderr, "Failed to replace database with temp file.\n\t%s\n\t%s\n", tmp_path, file_path);
-		return false;
+		return NULL;
 	}
-	return num_rows_deleted;
+	return ret_rows;
 }
 

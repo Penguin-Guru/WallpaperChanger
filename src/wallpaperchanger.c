@@ -459,7 +459,6 @@ bool handle_delete_current(const arg_list_t * const al) {
 	}
 	if (rows.ct <= 0) {
 		fprintf(stderr, "Nothing was deleted. Is the current wallpaper a favourite?\n");
-		free_rows(&rows);
 		return false;
 	}
 	printf("Entries deleted from database: %lu\nDeleting files...\n", rows.ct);
@@ -469,7 +468,7 @@ bool handle_delete_current(const arg_list_t * const al) {
 
 	if (verbosity) printf("Changing the current wallpaper...\n");
 	handle_set_new(NULL);
-	free_rows(&rows);
+	free_rows_contents(&rows);
 	return true;
 }
 
