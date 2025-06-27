@@ -31,8 +31,10 @@ declare -a project_libs=(
 	argument
 )
 declare prog=' gcc '
-declare debug_string=' -g3 -ggdb -Og -fno-omit-frame-pointer '
 #declare debug_string=' -g3 -ggdb -Og -fno-builtin -fno-omit-frame-pointer '
+declare debug_string=' -g3 -ggdb -Og -fno-omit-frame-pointer '
+	## -Wanalyzer-symbol-too-complex -Wanalyzer-too-complex
+	## -Wall -Wpedantic
 	## "-Wl,--build-id" is required for `perf buildid-cache`.
 	## "-pg" for static probes (prof/gprof).
 declare -i max_errors=3
@@ -55,6 +57,7 @@ for param in "$@"; do
 		[Aa]gain)	param_again=1		;;
 		[Dd]ebug)	param_debug=1		;;
 		[Gg][Dd][Bb])	param_debug=1		;;
+		[Aa]naly[sz]er)	debug_string+=' -fanalyzer -fanalyzer-transitivity -fanalyzer-fine-grained '	;;
 		[Pp]rint*)	param_print_command=1	;;
 		[Vv]erbose)	param_verbose='true'	;;
 		[Pp]rod*)	debug_string=' -O3 '	;;
