@@ -133,9 +133,12 @@ static bool match_long_param(long_flag_t arg) {
 bool parse_params(int argc, char** argv) {
 	for (unsigned short i = 1; i < argc; i++) {
 		//argv++;
+		assert(argv[i]);
+		assert(argv[i][0] != '\0');
 		char *argvi = argv[i];
-		if (argvi[0] != '-') {
+		if (argvi[0] != '-' || argvi[1] == '\0') {
 			// The parameter is not a flag, it's a "term".
+			// This includes cases where the entire argument is a single hyphen.
 			if (terms_pending) {
 				if (!param_buff) {
 					fprintf(stderr, "C.L.I. term(s) pending and detected, but list is empty!");
@@ -167,22 +170,20 @@ bool parse_params(int argc, char** argv) {
 		push_param_if_terms_pending(terms_pending, param_buff);
 		if (argvi[1] == '-') {	// Long form flag ("--").
 			// If parameter is only two hyphens, respect convention to stop processing parameters.
-			if (argvi[2] == 0) return true;
-			long_flag_t arg = strdup(argvi+2);
+			if (argvi[2] == '\0') return true;
+
+			assert(argvi[3] != '\0');
+			long_flag_t arg = argvi+2;
 			if (!match_long_param(arg)) {
-				free(arg);
 				free_args(&args_buff);
 				return false;
 			}
-			free(arg);
 		} else {	// Short-form flag ("-").
-			short_flag_t arg = strdup(argvi+1);
+			short_flag_t arg = argvi+1;
 			if (!match_short_param(arg)) {
-				free(arg);
 				free_args(&args_buff);
 				return false;
 			}
-			free(arg);
 		}
 	}
 	// Done parsing.
