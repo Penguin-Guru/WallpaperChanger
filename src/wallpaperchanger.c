@@ -64,7 +64,7 @@ static inline uint32_t get_monitor_id_from_name(const char * const name) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		// Hopefully strcoll catches any signed mismatches, otherwise use strcmp.
-		if (!strcoll((char*)(s_monitors.monitor[i].name), name)) continue;
+		if (strcoll((char*)(s_monitors.monitor[i].name), name)) continue;
 		return s_monitors.monitor[i].id;
 	}
 	fprintf(stderr, "Failed to match monitor name: \"%s\"\n", name);
@@ -440,6 +440,42 @@ bool handle_set_next(param_arg_ct argcnt, argument *arg) {
 	// Send it to set_new_current().
 	return true;
 }*/
+bool handle_restore_recent(const arg_list_t * const al) {
+	rows_t *currents = get_current(data_file_path, al ? al->args[0] : NULL);
+	if (currents == NULL) {
+		fprintf(stderr, "Error getting current wallpaper.\n");
+		return false;
+	}
+	assert(currents->ct > 0);
+
+	monitor_info *target_monitor;
+	monitor_id mid;
+	row_t *row;
+	for (num_rows i = 0; i < currents->ct; i++) {
+		row = currents->row[i];
+
+		if (!( mid = get_monitor_id_from_name(row->monitor_name))) {
+			if (verbosity) printf(
+				"Skipping monitor with unknown I.D. (assuming detached): \"%s\"\n",
+				row->monitor_name
+			);
+			continue;
+		}
+
+		if (access(row->file, F_OK) != 0) {	// Check whether exists and is readable.
+			fprintf(stderr, "Failed to access wallpaper at path: \"%s\"\n", row->file);
+			return false;
+		}
+
+		// No need to write entry to log, since we are only restoring the most recent entry.
+		if (!set_wallpaper(row->file, get_monitor_by_id(mid))) {
+			fprintf(stderr, "Failed to set new wallpaper.\n");
+			return false;
+		}
+	}
+
+	return true;
+}
 
 bool handle_fav_current(const arg_list_t * const al) {
 	tags_t criteria = encode_tag(TAG_CURRENT);

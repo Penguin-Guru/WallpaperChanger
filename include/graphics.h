@@ -4,16 +4,18 @@
 #include "util.h"
 
 
+typedef uint32_t monitor_id;
 typedef struct monitor_info {
-	uint32_t id;	// Monitor index, not xcb_randr_output_t.
+	monitor_id id;	// Monitor index, not xcb_randr_output_t.
 	char *name;
 	uint16_t width, height;
 	uint16_t offset_x, offset_y;
 	//unsigned int rotation;	// xcb_randr_rotation_t
 } monitor_info;
+typedef uint_fast16_t monitor_ct;
 typedef struct monitor_list {
 	monitor_info *monitor;
-	uint_fast16_t ct;
+	monitor_ct ct;
 } monitor_list;
 
 

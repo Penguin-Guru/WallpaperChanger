@@ -5,6 +5,7 @@
 bool handle_set(const arg_list_t * const al);
 bool handle_set_new(const arg_list_t * const al);
 bool handle_set_fav(const arg_list_t * const al);
+bool handle_restore_recent(const arg_list_t * const al);
 
 bool handle_fav_current(const arg_list_t * const al);
 bool handle_delete_current(const arg_list_t * const al);
@@ -77,6 +78,25 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		.flag_pair = (flag_pair_t){
 			.long_flag	= "set-fav",
 			.short_flag	= "sf"
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min		= 0,
+			.max		= 0
+		},
+		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
+		.previous_load = NONE
+	},
+	{
+		.handler_set = (handler_set_t){
+			.name		= "restore-recent",
+			.description	= "Restore (the most) recent wallpapers to (all) connected monitors.",
+			.fn		= handle_restore_recent,
+			.arg_list	= 0	// Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag	= "restore",
+			.short_flag	= "r"
 		},
 		.arg_params = (param_arg_parameters_t){
 			.min		= 0,
