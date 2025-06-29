@@ -8,6 +8,7 @@
 #endif	// __has_include
 
 #include <sys/stat.h>
+#include <wordexp.h>	// For wordexp and wordfree.
 #include <string.h>
 #include <stdlib.h>	// For free.
 #include <stdio.h>	// For fprintf.
@@ -51,6 +52,7 @@ bool parse_line(const char * const line) {
 		// Parse the terms/arguments.
 		char *buff = NULL, *saveptr;
 		param_arg_ct arg_ct = 0;
+		wordexp_t shell_expanded;
 		for(
 			buff = strtok_r(op+1, VALUE_DELIMS, &saveptr)
 			;buff != NULL && arg_ct <= etc;
@@ -63,7 +65,39 @@ bool parse_line(const char * const line) {
 			);
 			uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
 			if (strlen(buff) == skip) continue;
-			args[arg_ct++] = buff + skip;
+			//args[arg_ct++] = buff + skip;
+			int wordexp_error;
+			if ((wordexp_error = wordexp(buff + skip, &shell_expanded, 0))) {
+				char *wordexp_error_string;
+				switch (wordexp_error) {
+					case WRDE_BADCHAR :
+						wordexp_error_string = "Illegal occurrence of newline or one of |, &, ;, <, >, (, ), {, }.";
+						break;
+					case WRDE_SYNTAX :
+						wordexp_error_string = "Shell syntax error, such as unbalanced parentheses or unmatched quotes.";
+						break;
+					/*case WRDE_CMDSUB :
+						wordexp_error_string = "Command substitution requested, but the WRDE_NOCMD flag told us to consider this an error.";
+						break;*/
+					/*case WRDE_BADVAL :
+						wordexp_error_string = "An undefined shell variable was referenced, and the WRDE_UNDEF flag told us to consider this an error.";
+						break*/
+					case WRDE_NOSPACE :
+						wordexp_error_string = "Out of memory.";
+						break;
+					default :
+						wordexp_error_string = "Unknown.";
+				}
+				fprintf(stderr,
+					"Value in config file failed shell expansion. Aborting execution.\n"
+					"\tValue was: \"%s\"\n"
+					"\t    Error: %s\n"
+					, buff + skip
+					, wordexp_error_string
+				);
+			}
+			args[arg_ct++] = shell_expanded.we_wordv[0];
+			// wordfree(&shell_expanded) would supposedly only free the value string, which we need. Free later.
 		}
 		if (arg_ct < param->arg_params.min || arg_ct > etc) {
 			fprintf(stderr,
