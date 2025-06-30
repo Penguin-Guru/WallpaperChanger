@@ -114,7 +114,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 	char writable_row_string[row_string_length + 1];
 	strcpy(writable_row_string, row_string);
 	char *buff = NULL, *saveptr;
-	char token[NUM_COLUMNS][MAX_COLUMN_LENGTH];
+	char token[NUM_COLUMNS+1][MAX_COLUMN_LENGTH];	// +1 for overflow detection.
 	token_length_t token_len = 0;
 	for (
 			buff = strtok_r(writable_row_string, COLUMN_DELIMS, &saveptr)
@@ -123,6 +123,16 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 		;
 			buff = strtok_r(NULL, COLUMN_DELIMS, &saveptr)
 	) {
+		if (token_len == NUM_COLUMNS) {
+			fprintf(stderr,
+				"Skipping wallpaper log entry due to invalid format...\n"
+					"\tString value(s) on line (#%lu) may contain column delimiter character(s).\n"
+					"\tRow string: \"%s\"\n"
+				, row_num
+				, row_string
+			);
+			return NULL;
+		}
 		// Add to token array if first or different from previous.
 		if (token_len == 0 || strcmp(buff, token[token_len-1])) strncpy(token[token_len++], buff, MAX_COLUMN_LENGTH);
 	}
