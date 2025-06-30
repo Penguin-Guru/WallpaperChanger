@@ -1220,12 +1220,16 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// https://stackoverflow.com/a/77404684
 
 	// Prepare the wallpaper data:
-	image_t *img = get_pixel_data(
+	image_t *img;
+	if (!(img = get_pixel_data(
 		wallpaper_file_path,
 		bits_per_pixel,
 		target_width,
 		target_height
-	);
+	))) {
+		fprintf(stderr, "Failed to get_pixel_data(). Aborting.\n");
+		return false;
+	}
 	// Note: img should be freed but img->pixels is freed automatically by xcb_image_destroy.
 
 	if (	// If target dimensions were not achieved.
