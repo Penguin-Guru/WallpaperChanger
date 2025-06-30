@@ -87,6 +87,17 @@ static inline monitor_info* const get_monitor_by_id(const uint32_t id) {
 	return 0;
 }
 
+static inline bool is_file_accessible(const file_path_t file) {
+	// Check whether exists and is readable.
+	if (access(file, F_OK) == 0) return true;
+	fprintf(stderr,
+		"File is not accessible: \"%s\"\n"
+			"\tMay not exist or offer read access/permission to your user account.\n"
+		, file
+	);
+	return false;
+}
+
 
 /* Intermediary functions: */
 
@@ -462,10 +473,7 @@ bool handle_restore_recent(const arg_list_t * const al) {
 			continue;
 		}
 
-		if (access(row->file, F_OK) != 0) {	// Check whether exists and is readable.
-			fprintf(stderr, "Failed to access wallpaper at path: \"%s\"\n", row->file);
-			return false;
-		}
+		if (!is_file_accessible(row->file)) return false;
 
 		// No need to write entry to log, since we are only restoring the most recent entry.
 		if (!set_wallpaper(row->file, get_monitor_by_id(mid))) {
@@ -602,10 +610,7 @@ bool handle_list_monitors(const arg_list_t * const al) {
 bool handle_database_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
-		fprintf(stderr, "Failed to access database at path: \"%s\"\n", al->args[0]);
-		return false;
-	}
+	if (!is_file_accessible(al->args[0])) return false;
 	const size_t len = strlen(al->args[0]);
 	if (!len) {
 		fprintf(stderr, "Database path length is 0.\n");
@@ -621,10 +626,7 @@ bool handle_database_path(const arg_list_t * const al) {
 bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (access(al->args[0], F_OK) != 0) {	// Check whether exists and is readable.
-		fprintf(stderr, "Failed to access wallpaper at path: \"%s\"\n", al->args[0]);
-		return false;
-	}
+	if (!is_file_accessible(al->args[0])) return false;
 	const size_t len = strlen(al->args[0]);
 	if (!len) {
 		fprintf(stderr, "Wallpaper path length is 0.\n");
