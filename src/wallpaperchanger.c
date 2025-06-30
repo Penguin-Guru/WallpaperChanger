@@ -87,14 +87,88 @@ static inline monitor_info* const get_monitor_by_id(const uint32_t id) {
 	return 0;
 }
 
-static inline bool is_file_accessible(const file_path_t file) {
-	// Check whether exists and is readable.
-	if (access(file, F_OK) == 0) return true;
+#define IFA_MAX_MODE_FLAGS 2
+static inline bool is_file_accessible(const file_path_t file, const char mode_flags[IFA_MAX_MODE_FLAGS]) {
+	int mode;
+	if (mode_flags) {
+		mode = 0;
+		for (uint_fast8_t i = 0; i < IFA_MAX_MODE_FLAGS && mode_flags[i]; i++) {
+			assert(
+				   mode_flags[i] == 'R'
+				|| mode_flags[i] == 'r'
+				|| mode_flags[i] == 'W'
+				|| mode_flags[i] == 'w'
+			);
+			switch (mode_flags[i]) {
+				case 'R' :
+				case 'r' :
+					mode |= R_OK;	// Check read permissions.
+					break;
+				case 'W' :
+				case 'w' :
+					mode |= W_OK;	// Check write permissions.
+					break;
+				default :
+					fprintf(stderr, "Unknown mode flag supplied to is_file_accessible().\n");
+					return false;
+			}
+		}
+	} else mode = F_OK;	// Check whether exists (not read/write permissions).
+
+	int status;
+	if ((status = access(file, mode)) == 0) return true;
 	fprintf(stderr,
 		"File is not accessible: \"%s\"\n"
-			"\tMay not exist or offer read access/permission to your user account.\n"
 		, file
 	);
+	char *status_str;
+	switch (status) {
+		case EACCES :
+			status_str = "EACCES: may be caused by:\n"
+				"\t\tFile/path not existing.\n"
+				"\t\tParent directory not granting search permission to your user account."
+			;
+			break;
+		case EBADF :
+			status_str = "EBADF: see manual (2) page for \"access\".";
+			break;
+		case EFAULT :
+			status_str = "EFAULT: see manual (2) page for \"access\".";
+			break;
+		case EINVAL :
+			status_str = "EINVAL: see manual (2) page for \"access\".";
+			break;
+		case EIO :
+			status_str = "EIO: see manual (2) page for \"access\".";
+			break;
+		case ELOOP :
+			status_str = "ELOOP: too many symbolic links.";
+			break;
+		case ENAMETOOLONG :
+			status_str = "ENAMETOOLONG: path is too long.";
+			break;
+		case ENOENT :
+			status_str = "ENOENT: a component of path does not exist or is a dangling symbolic link.";
+			break;
+		case ENOMEM :
+			status_str = "ENOMEM: insufficient kernel memory.";
+			break;
+		case ENOTDIR :
+			status_str = "ENOTDIR: path references a directory that is not a directory.";
+			break;
+		case EPERM :
+			status_str = "EPERM: can not write. File has immutable flag set.";
+			break;
+		case EROFS :
+			status_str = "EROFS: can not write. File is on a read-only filesystem.";
+			break;
+		case ETXTBSY :
+			status_str = "ETXTBSY: will not write. File is an executable which is being executed.";
+			break;
+		default :
+			status_str = "Unknown error (%d): see manual (2) page for \"access\".";
+	}
+	fprintf(stderr, "\t%s\n", status_str);
 	return false;
 }
 
@@ -493,7 +567,7 @@ bool handle_restore_recent(const arg_list_t * const al) {
 			continue;
 		}
 
-		if (!is_file_accessible(row->file)) return false;
+		if (!is_file_accessible(row->file, "R")) return false;
 
 		// No need to write entry to log, since we are only restoring the most recent entry.
 		if (!set_wallpaper(row->file, get_monitor_by_id(mid))) {
@@ -630,7 +704,7 @@ bool handle_list_monitors(const arg_list_t * const al) {
 bool handle_database_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (!is_file_accessible(al->args[0])) return false;
+	if (!is_file_accessible(al->args[0], "RW")) return false;
 	const size_t len = strlen(al->args[0]);
 	if (!len) {
 		fprintf(stderr, "Database path length is 0.\n");
@@ -646,7 +720,7 @@ bool handle_database_path(const arg_list_t * const al) {
 bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (!is_file_accessible(al->args[0])) return false;
+	if (!is_file_accessible(al->args[0], "R")) return false;
 	const size_t len = strlen(al->args[0]);
 	if (!len) {
 		fprintf(stderr, "Wallpaper path length is 0.\n");
