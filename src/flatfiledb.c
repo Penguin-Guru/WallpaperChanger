@@ -491,8 +491,8 @@ void gen_tag_string(char *string, tags_t tags) {
 				static_assert(sizeof(TAG_DELIM) == 1, "Expected single byte char.\n");
 				memcpy(string + total_len++, &TAG_DELIM, 1);	// Incrementing.
 				unsigned short len = strlen(tags_known[i].text);	// Not including terminating null.
+				memcpy(string + total_len, tags_known[i].text, len);
 				total_len += len;
-				memcpy(string + total_len + 1, tags_known[i].text, len);
 			}
 		}
 		if (total_len > Max_Tag_String_Len) {
