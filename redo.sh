@@ -31,12 +31,12 @@ declare -a project_libs=(
 	argument
 )
 declare prog=' gcc '
-#declare debug_string=' -g3 -ggdb -Og -fno-builtin -fno-omit-frame-pointer '
-declare debug_string=' -g3 -ggdb -Og -fno-omit-frame-pointer '
+declare debug_string=' -ggdb -Og -fno-omit-frame-pointer '
 	## -Wanalyzer-symbol-too-complex -Wanalyzer-too-complex
 	## -Wall -Wpedantic
 	## "-Wl,--build-id" is required for `perf buildid-cache`.
 	## "-pg" for static probes (prof/gprof).
+	## -fno-builtin
 declare -i max_errors=3
 	## Apparently not honoured by linker?
 	#-Wfatal-errors	## Stop on first error.
