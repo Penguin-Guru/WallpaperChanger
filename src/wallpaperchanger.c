@@ -114,6 +114,26 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 	assert(target_monitor->name);
 	assert(target_monitor->name[0]);
 
+	// Validate strings for database format here, so we can abort before setting the wallpaper.
+	if (!validate_string_value(target_monitor->name)) {
+		fprintf(stderr,
+			"Monitor name contains invalid character(s). Aborting.\n"
+				"\tName: \"%s\"\n"
+				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
+			, target_monitor->name
+		);
+		return false;
+	}
+	if (!validate_string_value(wallpaper_file_path)) {
+		fprintf(stderr,
+			"Wallpaper file name/path contains invalid character(s). Aborting.\n"
+				"\tFile: \"%s\"\n"
+				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
+			, target_monitor->name
+		);
+		return false;
+	}
+
 	if (!set_wallpaper(wallpaper_file_path, target_monitor)) {
 		fprintf(stderr, "Failed to set new wallpaper.\n");
 		return false;

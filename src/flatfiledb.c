@@ -54,6 +54,21 @@ void free_rows(rows_t *target) {
 	free(target);
 }
 
+bool validate_string_value(const char *str) {
+	char *found;
+	if ((found = strpbrk(str, COLUMN_DELIMS))) {
+		if (*found == '\n' && *(found+1) == '\0') return true;
+		return false;
+	}
+	return true;
+}
+bool validate_row(const row_t *r) {
+	validate_string_value(r->ts);
+	validate_string_value(r->monitor_name);
+	validate_string_value(r->file);
+	// No need to validate tags, since there should be no potential for delimiters.
+}
+
 tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 	tags_t ret = 0;
 
@@ -301,6 +316,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	assert(new_entry->monitor_name[0]);
 	assert(new_entry->file);
 	assert(new_entry->file[0]);
+	assert(validate_row(new_entry));
 
 	if (strpbrk(new_entry->file, COLUMN_DELIMS)) {
 		fprintf(stderr, "Not adding entry to database. File path contains invalid characters-- probably a semicolon or newline.\n");
