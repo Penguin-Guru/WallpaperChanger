@@ -1,7 +1,9 @@
 # WallpaperChanger
-This is a fairly simple wallpaper manager that will probably only work on Linux. The code is still messy and the overall design is questionable. I wanted to rewrite my Bash script in C++, then I decided to port that to C. It was mostly for practice but I do use this regularly. I know there are a few areas in which the code can be improved and I'm sure there are some bugs I haven't caught yet. Please file any issues and I'll fix what I can.
+This is a fairly simple wallpaper manager that will probably only work on Linux. The code is still messy and the overall design is questionable. I wanted to rewrite my Bash script in C++, then I decided to rewrite it again in C. It was mostly for practice but I do use this regularly. I know there are a few areas in which the code can be improved and I'm sure there are some bugs I haven't caught yet. Please file any issues and I'll fix what I can.
 
-Simple multi-monitor support has been implemented (with the Randr extension). It seems to work well enough but the displayed wallpaper(s) may be mangled when (certain) monitors are disconnected. I don't know of a window-manager-agnostic way to handle these sort of events, since this program does not run continuously. In those cases, you will simply need to run the program again.
+Simple multi-monitor support has been implemented (with the Randr extension). It seems to work well enough but the displayed wallpaper(s) may be mangled when (certain) monitors are disconnected. I don't know of a window-manager-agnostic way to handle these sort of events, since this program does not run continuously. In those cases, you will simply need to run the program again (with the `-r` flag).
+
+To automatically re-load the most recent wallpapers for connected monitors when you start Xorg, add a line like `wallpaperchanger -r` to your `~/.xinitrc` (or such). Omitting the full path to the program like that assumes you have installed (i.e. moved) the compiled program to a directory within your system path (`$PATH`). The conventional directory would be `/usr/local/bin/`.
 
 ## How it works:
 
@@ -23,7 +25,7 @@ A config file is supported if useful. By default, the file should be `$XDG_CONFI
 2. A key/value delimiter, which may be either a colon, an equals symbol, or whitespace.
 3. A list of values, read from left to right, each separated by a comma, a semicolon, or whitespace.
 
-Wallpaper file paths must not contain semicolons. This is typically disallowed by operating systems anyway.
+Wallpaper file paths must not contain semicolons. This is typically disallowed by operating systems anyway. The program *should* warn you if it encounters any.
 
 ## Requirements:
 
