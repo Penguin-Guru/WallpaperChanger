@@ -83,6 +83,7 @@ bool validate_row(const row_t *r);
 typedef uint_fast8_t token_length_t;
 tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]);
 tags_t encode_tag(enum Tag tag);
+void gen_tag_string(char *string, tags_t tags);
 //inline tags_t sum_tags
 
 row_t* get_row_if_match(
@@ -105,7 +106,6 @@ rows_t* get_current(
 
 bool append_new_current(const file_path_t data_file_path, row_t *new_entry);
 
-void gen_tag_string(char *string, tags_t tags);
 num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod);
 
 rows_t* del_entry_by_tag(
