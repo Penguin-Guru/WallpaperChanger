@@ -141,7 +141,13 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 
 	if (token_len < NUM_COLUMNS - 1 || token_len > NUM_COLUMNS) {
 		// No warning for empty lines.
-		if (token_len > 0) fprintf(stderr, "Invalid number of columns for row #%lu. Columns detected: %hu.\n", row_num, token_len);
+		if (token_len > 0) fprintf(stderr,
+				"Invalid number of columns for row #%lu.\n"
+					"\tColumns detected: %hu.\n"
+					"\tColumns expected: %hu -- %hu.\n"
+				, row_num, token_len
+				, NUM_COLUMNS - 1, NUM_COLUMNS
+			);
 		return NULL;
 	}
 
