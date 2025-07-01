@@ -344,28 +344,6 @@ short check_mime_type(const file_path_t filepath) {
 	magic_close(magic);
 	return 1;	// Mime type matches ("image").
 }
-short test_file(const file_path_t filepath) {
-	switch (check_mime_type(filepath)) {
-		case 1: break;		// Proceed.
-		case 0: return 0;	// Continue search.
-		default:
-			fprintf(stderr, "Unexpected return status from check_mime_type(). Aborting.\n");
-			return -1;	// Fail.
-	}
-
-	switch (wallpaper_is_new((const file_path_t)filepath)) {
-		case 1:
-			if (verbosity > 0) printf("Found new wallpaper: \"%s\"\n", filepath);
-			set_new_current((const file_path_t)filepath, 0);
-			// Purposefully flows into next case.
-		case -1: return 1;	// Stop the search.
-		case 0: return 0;	// Continue search.
-		default:
-			fprintf(stderr, "Unexpected return status from wallpaper_is_new(). Aborting.\n");
-			return -1;	// Fail.
-	}
-	assert("Flow should not have reached this point.");
-}
 bool is_path_within_path(const file_path_t a, const file_path_t b) {
 	// Tests whether path A is path B or is contained within directory at path B.
 	char *start_of_subpath = strstr(b, a);
@@ -373,7 +351,35 @@ bool is_path_within_path(const file_path_t a, const file_path_t b) {
 	if (start_of_subpath - a > 0) return false;
 	return true;
 }
-int process_inode(
+#define MAX_INODE_TESTS 2
+typedef struct test_set {
+	uint_fast8_t ct;
+	short ret;
+	// Array of functions to be executed sequentially. See run_test_set below.
+	short (*test[MAX_INODE_TESTS])(const file_path_t filepath);	// Hard-coded array length is not ideal.
+} test_set;
+void append_test_to_set(struct test_set *tests, short(*test)(const file_path_t filepath)) {
+	assert(tests->ct < MAX_INODE_TESTS);
+	tests->test[tests->ct++] = test;
+}
+/*void clear_test_set(struct test_set *tests) {
+	assert(tests->ct >= 0);
+	for (uint_fast8_t i = 0; i < tests->ct; i++) tests->test[i] = NULL;
+	tests->ct = 0;
+}*/
+short run_test_set(struct test_set *tests, const file_path_t filepath) {
+	assert(tests->ct >= 0);
+	assert(tests->ct <= MAX_INODE_TESTS);
+	for (uint_fast8_t i = 0; i < tests->ct; i++)
+		// Return values:
+		// 	 1: Proceed -- file matches criteria.
+		// 	 0: Return (to continue search).
+		// 	-1: Return (to abort).
+		if ((tests->ret = tests->test[i](filepath)) != 1) break;
+	return tests->ret;
+}
+struct test_set tests;	// Global struct for nftw functions. Eliminate later.
+int search_for_wallpaper(
 	const char *filepath,
 	const struct stat *info,
 	const int typeflag,
@@ -387,7 +393,10 @@ int process_inode(
 		case FTW_DP:
 			break;	// Continue search.
 		case FTW_F: {
-			return test_file((const file_path_t)filepath);
+			short ret;
+			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
+				set_new_current((const file_path_t)filepath, 0);
+			return ret;
 		}
 		case FTW_SL: {
 			char   *target;
@@ -422,14 +431,16 @@ int process_inode(
 						fprintf(stderr, "Reached maximum directory depth. Skipping directory: \"%s\"\n", target);
 						break;	// Continue search.
 					}
-					ret = nftw(target, process_inode, --s_directory_depth_remaining, FTW_PHYS);
+					ret = nftw(target, search_for_wallpaper, --s_directory_depth_remaining, FTW_PHYS);
 					s_directory_depth_remaining++;	// This is ugly.
 					assert(0 <= s_directory_depth_remaining <= MAX_DIRECTORY_DEPTH);
 					break;
 				}
 				case S_IFREG:
 					if (verbosity > 1) printf("%s -> %s\n", filepath, target);
-					ret = test_file(target);
+					ret = run_test_set(&tests, (const file_path_t)filepath);
+					if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
+						set_new_current((const file_path_t)filepath, 0);
 					break;
 				default:
 					fprintf(stderr, "Detected symlink to unsupported inode file type: \"%s\"\n", filepath);
@@ -474,8 +485,10 @@ bool handle_set_new(const arg_list_t * const al) {
 		snprintf(wallpaper_path, len, "%s%s\0", data_directory, "/" DEFAULT_WALLPAPER_DIR_NAME);
 	}
 
+	append_test_to_set(&tests, check_mime_type);
+	append_test_to_set(&tests, wallpaper_is_new);
 	s_directory_depth_remaining = MAX_DIRECTORY_DEPTH;
-	switch (nftw(wallpaper_path, process_inode, MAX_DIRECTORY_DEPTH, FTW_PHYS)) {
+	switch (nftw(wallpaper_path, search_for_wallpaper, MAX_DIRECTORY_DEPTH, FTW_PHYS)) {
 		case 1:
 			// Wallpaper should have been set successfully.
 			return true;
