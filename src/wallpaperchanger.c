@@ -268,55 +268,62 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 		fprintf(stderr, "Failed to reallocate memory.\n");
 	}
 }*/
+short populate_wallpaper_cache() {
+	assert(s_wallpapers == NULL);
+	assert(s_wallpapers_ct == 0);
+	tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria, NULL);
+	if (!rows || rows->ct <= 0) {
+		if (rows) free_rows(rows);
+		return 1;	// Seems new.
+	}
+	// Allocating memory for all rows is inefficient. Fix later.
+	s_wallpapers = (file_path_t*)malloc(sizeof(file_path_t)*rows->ct);
+	for (unsigned int i = 0; i < rows->ct; i++) {
+		const file_path_t fp = rows->row[i]->file;
+		// Comparing file names may be insufficiently unique.
+		// We will compare path structures relative to wallpaper_path.
+		const file_path_t start_of_relative_path = get_start_of_relative_path(fp);
+		if (!start_of_relative_path) {
+			fprintf(stderr,
+				"File path is not in wallpaper directory. Have you migrated?\n"
+					"\tFile path: \"%s\"\n"
+					"\tWallpaper directory: \"%s\"\n"
+				,
+				fp,
+				"/" DEFAULT_WALLPAPER_DIR_NAME "/"
+			);
+			free_rows(rows);
+			return -1;	// Abort.
+			//decrement_static_wallpapers();
+			//continue;
+		}
+		const size_t len = strlen(start_of_relative_path);
+		if (!len) {
+			fprintf(stderr, "Invalid path length!\n");
+			free_rows(rows);
+			//decrement_static_wallpapers();
+			continue;
+		}
+		if (! (s_wallpapers[s_wallpapers_ct] = (file_path_t)malloc(len+1))) {
+			fprintf(stderr, "Failed to allocate memory. Aborting.\n");
+			free_rows(rows);
+			return -1;	// Abort.
+		}
+		assert(start_of_relative_path[len] == '\0');
+		memcpy(s_wallpapers[s_wallpapers_ct++], start_of_relative_path, len+1);
+	}
+	free_rows(rows);
+	return 0;
+}
 short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 	if (wallpaper_file_path == NULL || *wallpaper_file_path == '\0') {
 		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
 		return -1;	// Abort.
 	}
 	if (s_wallpapers == NULL) {	// Populate the cache if not already done from previous call.
-		tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
-		rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria, NULL);
-		if (!rows || rows->ct <= 0) {
-			if (rows) free_rows(rows);
-			return 1;	// Seems new.
-		}
-		// Allocating memory for all rows is inefficient. Fix later.
-		s_wallpapers = (file_path_t*)malloc(sizeof(file_path_t)*rows->ct);
-		for (unsigned int i = 0; i < rows->ct; i++) {
-			const file_path_t fp = rows->row[i]->file;
-			// Comparing file names may be insufficiently unique.
-			// We will compare path structures relative to wallpaper_path.
-			const file_path_t start_of_relative_path = get_start_of_relative_path(fp);
-			if (!start_of_relative_path) {
-				fprintf(stderr,
-					"File path is not in wallpaper directory. Have you migrated?\n"
-						"\tFile path: \"%s\"\n"
-						"\tWallpaper directory: \"%s\"\n"
-					,
-					fp,
-					"/" DEFAULT_WALLPAPER_DIR_NAME "/"
-				);
-				free_rows(rows);
-				return -1;	// Abort.
-				//decrement_static_wallpapers();
-				//continue;
-			}
-			const size_t len = strlen(start_of_relative_path);
-			if (!len) {
-				fprintf(stderr, "Invalid path length!\n");
-				free_rows(rows);
-				//decrement_static_wallpapers();
-				continue;
-			}
-			if (! (s_wallpapers[s_wallpapers_ct] = (file_path_t)malloc(len+1))) {
-				fprintf(stderr, "Failed to allocate memory. Aborting.\n");
-				free_rows(rows);
-				return -1;	// Abort.
-			}
-			assert(start_of_relative_path[len] == '\0');
-			memcpy(s_wallpapers[s_wallpapers_ct++], start_of_relative_path, len+1);
-		}
-		free_rows(rows);
+		short ret;
+		if ((ret = populate_wallpaper_cache()) != 0) return ret;
 	}
 	for (unsigned int i = 0; i < s_wallpapers_ct; i++) {
 		const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
@@ -399,9 +406,9 @@ int search_for_wallpaper(
 			return ret;
 		}
 		case FTW_SL: {
-			char   *target;
-			target = realpath(filepath, target);
-			if (target == NULL) {
+			char *target;
+			char target_buff[PATH_MAX];
+			if (!(target = realpath(filepath, target_buff))) {
 				fprintf(stderr, "Failed to parse realpath for symlink: \"%s\"\n", filepath);
 				return -1;	// Fail loudly.
 			}
@@ -469,7 +476,102 @@ int search_for_wallpaper(
 bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren't necessary.
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	return set_new_current(al->args[0], 0);
+	file_path_t target_path = al->args[0];
+
+	// Check whether specified path refers to a regular file or directory.
+	struct stat statbuff;
+	if (lstat(target_path, &statbuff) == -1) {
+		fprintf(stderr, "Error status (-1) returned by lstat.\n");
+		return false;
+	}
+	switch (statbuff.st_mode & S_IFMT) {
+		case S_IFREG:
+			// Path refers to regular file. Attempt to use it.
+			//target_wallpaper = target_path;
+			//break;
+			set_new_current(target_path, 0);
+			return true;
+		case S_IFDIR: {
+			// Path refers to a directory.
+			// Select a wallpaper from within it (recursively).
+
+			// Prefer new wallpapers if available:
+			append_test_to_set(&tests, check_mime_type);
+			append_test_to_set(&tests, wallpaper_is_new);
+			s_directory_depth_remaining = MAX_DIRECTORY_DEPTH;
+			switch (nftw(target_path, search_for_wallpaper, MAX_DIRECTORY_DEPTH, FTW_PHYS)) {
+				case 1:
+					// Wallpaper should have been set successfully.
+					return true;
+				case 0:
+					// No need to report this. We will use a different approach for file selection.
+					break;
+				case -1:
+					fprintf(stderr, "nftw returned an error status.\n");
+					return false;
+				default:
+					fprintf(stderr, "Unexpected return status from nftw.\n");
+					return false;
+			}
+
+			// No new wallpaper was available.
+			// Use cache to select a random wallpaper with the specified path prefix:
+			srand(time(NULL));
+			int i, start;
+			if (s_wallpapers_ct == 0) {
+				switch (populate_wallpaper_cache()) {
+					case  0: break;
+					case  1:
+						printf("Failed to find a suitable wallpaper in the specified path.\n");
+						return false;
+					case -1: return false;
+					default:
+						 fprintf(stderr, "Unknown return value from populate_wallpaper_cache().\n");
+						 return false;
+				}
+			}
+			if ((i = start = rand() % s_wallpapers_ct) <= 0) {
+				if (start == 0)
+					if (verbosity)
+						printf("Failed to find a suitable wallpaper in the specified path.\n");
+				else
+					fprintf(stderr, "Integer overflow while attempting to generate a random start position within wallpaper file cache.\n");
+				return false;
+			}
+			do {
+				if (is_path_within_path(s_wallpapers[i], target_path)) {
+					set_new_current(s_wallpapers[i], 0);
+					return true;
+				}
+				if (++i == s_wallpapers_ct) i = 0;
+			} while (i != start);
+
+			if (verbosity) printf("There do not seem to be any valid wallpapers in the specified directory.\n");
+			break;	// Fail.
+		}
+		case S_IFLNK: {
+			// Pass through symlink.
+			char *resolved_target_path;
+			char resolved_target_path_buff[PATH_MAX];
+			if (!(resolved_target_path = realpath(target_path, resolved_target_path_buff))) {
+				fprintf(stderr, "Failed to parse realpath for symlink: \"%s\"\n", target_path);
+				return false;
+			}
+
+			const arg_list_t silly = {
+				.ct = 1,
+				.args = &resolved_target_path
+			};
+			bool ret = handle_set(&silly);
+
+			return ret;
+		}
+		default:
+			fprintf(stderr, "Specified path refers to unsupported inode file type: \"%s\"\n", target_path);
+			break;	// Fail.
+	}
+
+	return false;
 }
 
 bool handle_set_new(const arg_list_t * const al) {

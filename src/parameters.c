@@ -33,7 +33,12 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	{
 		.handler_set = (handler_set_t){
 			.name		= "set",
-			.description	= "Set a specific wallpaper as active/current.",
+			.description	=
+				"Set a specific wallpaper or a wallpaper from a specific directory as active/current."
+					"\n\t\t\tNote: When searching directories..."
+						"\n\t\t\t\tNew wallpapers are preferred when available."
+						"\n\t\t\t\tSelection of previously used wallpapers is randomised."
+				,
 			.fn		= handle_set,
 			.arg_list	= 0	// Null.
 		},
