@@ -556,7 +556,7 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 			tags_t result = row->tags | *tags_mod;
 			char tag_string[Max_Tag_String_Len];
 			gen_tag_string(tag_string, result);
-			fprintf(tmp, "%s%c%s%c%s\n",
+			fprintf(tmp, "%s%c%s%c%s%c%s\n",
 				row->ts,
 				COLUMN_DELIM,
 				row->monitor_name,
