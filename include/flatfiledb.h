@@ -76,6 +76,7 @@ typedef struct rows_t {
 void free_rows_contents(rows_t* target);	// Free stack allocations.
 void free_rows(rows_t* target);			// Free heap allocations.
 
+bool format_path(file_path_t path);
 bool validate_string_value(const char *str);
 bool validate_row(const row_t *r);
 

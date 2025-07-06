@@ -198,6 +198,7 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		);
 		return false;
 	}
+	format_path(wallpaper_file_path);
 	if (!validate_string_value(wallpaper_file_path)) {
 		fprintf(stderr,
 			"Wallpaper file name/path contains invalid character(s). Aborting.\n"

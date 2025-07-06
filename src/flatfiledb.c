@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <assert.h>
+#include <inttypes.h>	// For fixed width integer format macros.
 #include "flatfiledb.h"
 
 
@@ -54,6 +55,21 @@ void free_rows(rows_t *target) {
 	free(target);
 }
 
+bool format_path(file_path_t path) {
+	// Remove duplicate, consecutive slashes.
+	static const char *double_slashes = "//";
+	char *pos = strstr(path, double_slashes);
+	size_t length_remaining;
+	uint_fast8_t ct = 0;
+	while (pos != NULL) {
+		ct++;
+		length_remaining = strlen(pos);
+		memmove(pos, pos + 1, length_remaining);
+		pos = strstr(pos, double_slashes);
+	}
+	if (ct) fprintf(stderr, "Removed %" PRIuFAST8 " duplicate, consecutive slashes from path.\n", ct);
+	return true;
+}
 bool validate_string_value(const char *str) {
 	char *found;
 	if ((found = strpbrk(str, COLUMN_DELIMS))) {
