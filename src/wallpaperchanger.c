@@ -173,6 +173,40 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 }
 
 
+static file_path_t get_wallpaper_path() {
+	if (wallpaper_path) {
+		assert(wallpaper_path[0]);
+		return wallpaper_path;
+	}
+
+	// Initialise default.
+	if (!data_directory) {
+		if (!(data_directory = get_xdg_data_home())) {
+			fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
+			clean_up();
+			return NULL;
+		}
+	}
+	assert(data_directory[0]);
+	const size_t len = strlen(data_directory);
+	assert(DEFAULT_WALLPAPER_DIR_NAME[sizeof(DEFAULT_WALLPAPER_DIR_NAME)-1] == '\0');
+	wallpaper_path = (file_path_t)malloc(len+1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
+	memcpy(wallpaper_path, data_directory, len);
+	/*assert(data_directory[len-1] == '/');	// -1 to offset array's zero indexing.
+	memcpy(wallpaper_path+len, DEFAULT_WALLPAPER_DIR_NAME, sizeof(DEFAULT_WALLPAPER_DIR_NAME));*/
+	// Add slash only if not already present.
+	if (data_directory[len-1] == '/') {	// -1 to offset array's zero indexing.
+		memcpy(wallpaper_path+len, DEFAULT_WALLPAPER_DIR_NAME, sizeof(DEFAULT_WALLPAPER_DIR_NAME));
+	} else {
+		fprintf(stderr, "Data directory string does not end with a slash. This is unexpected.\n");
+		memcpy(wallpaper_path+len, "/" DEFAULT_WALLPAPER_DIR_NAME, 1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
+	}
+
+	assert(wallpaper_path && wallpaper_path[0]);
+	return wallpaper_path;
+}
+
+
 /* Intermediary functions: */
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
@@ -576,17 +610,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 }
 
 bool handle_set_new(const arg_list_t * const al) {
-	if (!wallpaper_path) {
-		if (!data_directory) data_directory = get_xdg_data_home();
-		if (!data_directory || strlen(data_directory) == 0) {
-			fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
-			clean_up();
-			return false;
-		}
-		const size_t len = strlen(data_directory)+1+sizeof(DEFAULT_WALLPAPER_DIR_NAME);
-		wallpaper_path = (file_path_t)malloc(len+1);
-		snprintf(wallpaper_path, len, "%s%s\0", data_directory, "/" DEFAULT_WALLPAPER_DIR_NAME);
-	}
+	if (!get_wallpaper_path()) return false;
 
 	append_test_to_set(&tests, check_mime_type);
 	append_test_to_set(&tests, wallpaper_is_new);
