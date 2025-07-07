@@ -20,12 +20,10 @@
  * @param message Error message
 /*/
 static void FreeImageErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) {
-	printf("\n*** ");
-	if (fif != FIF_UNKNOWN) {
-		printf("%s Format\n", FreeImage_GetFormatFromFIF(fif));
-	}
-	printf("%s", message);
-	printf(" ***\n");
+	printf("\n*** FreeImage error:");
+	if (fif != FIF_UNKNOWN) printf("\tFormat: %s\n", FreeImage_GetFormatFromFIF(fif));
+	printf("\t%s\n", message);
+	printf("***\n\n");
 }
 
 image_t* get_image_size(const char *wallpaper_file_path) {
@@ -38,7 +36,7 @@ image_t* get_image_size(const char *wallpaper_file_path) {
 	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
 	if (!bitmap) {
-		fprintf(stderr, "Failed to load file as image.\n");
+		fprintf(stderr, "Failed to load file as image: \"%s\"\n", wallpaper_file_path);
 		FreeImage_DeInitialise();
 		return NULL;
 	}
@@ -66,7 +64,7 @@ image_t* get_pixel_data(
 	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
 	if (!bitmap) {
-		fprintf(stderr, "Failed to load file as image.\n");
+		fprintf(stderr, "Failed to load file as image: \"%s\"\n", wallpaper_file_path);
 		FreeImage_DeInitialise();
 		return NULL;
 	}
