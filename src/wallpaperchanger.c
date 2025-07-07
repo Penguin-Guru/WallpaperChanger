@@ -876,7 +876,7 @@ bool handle_wallpaper_path(const arg_list_t * const al) {
 bool handle_follow_symlinks_beyond_specified_directory(const arg_list_t * const al) {
 	assert(al == NULL);
 	follow_symlinks_beyond_specified_directory = true;
-	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n", wallpaper_path);
+	if (verbosity > 1) printf("User set: follow_symlinks_beyond_specified_directory\n");
 	return true;
 }
 bool handle_scale_for_wm(const arg_list_t * const al) {
