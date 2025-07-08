@@ -7,13 +7,16 @@
 #include "util.h"
 
 #define MAX_TAG_LENGTH 10
-//#define WHITESPACE_CHARACTERS " \t\r\n\v\f"
+// I would use all linebreak characters as line/entry delimiters but it isn't practical.
+// I would use all non-breaking whitespace characters as column delimiters but space characters often appear in file names.
+//#define LINEBREAK_CHARACTERS "\n\r\v\f"
+//#define WHITESPACE_CHARACTERS " \t" LINEBREAK_CHARACTERS
 // COLUMN_DELIMS and TAG_DELIMS:
 // 	These are used when reading from the database file.
 // 	They require \n for strtok_r to parse final segment of line.
 // 	Any character in either will have the same effect (for columns or tags respectively).
-#define COLUMN_DELIMS ";\n"
-#define TAG_DELIMS ",\n"
+#define COLUMN_DELIMS "\t\n"	// Must not appear within column fields.
+#define TAG_DELIMS ",\n"	// Must not appear within tag labels.
 // COLUMN_DELIM and TAG_DELIM:
 // 	These are used when writing to the database file.
 // 	The first character in the respective set above is preferred.

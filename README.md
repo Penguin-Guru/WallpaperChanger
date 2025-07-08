@@ -41,7 +41,7 @@ If you would like to periodically change your wallpaper, there are various job s
 
 While I have chosen not to run a continuous process, there is one drawback: disconnecting certain monitors causes wallpapers on some still connected monitors to be be mangled. I don't know of a window-manager-agnostic way to handle these sort of events. In such cases, you will simply need to run this program again (with the `-r` flag). An external process that can hook or detect those events could be used but I do not know of one to recommend.
 
-Currently, wallpaper file paths must not contain semicolons. This is generally discouraged anyway. The program *should* warn you if it encounters any.
+Currently, wallpaper file paths must not contain tab or new-line characters. This is broadly discouraged anyway and I have never seen it in practice. The program *should* warn you if it encounters any.
 
 ## Requirements:
 

@@ -386,7 +386,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	assert(validate_row(new_entry));
 
 	if (strpbrk(new_entry->file, COLUMN_DELIMS)) {
-		fprintf(stderr, "Not adding entry to database. File path contains invalid characters-- probably a semicolon or newline.\n");
+		fprintf(stderr, "Not adding entry to database. File path contains invalid characters-- probably a tab or new-line.\n");
 		return false;
 	}
 
