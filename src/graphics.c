@@ -177,7 +177,6 @@ bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_
 			return false;
 		}
 		memcpy(name, xcb_get_atom_name_name(atom_r), length);
-		assert(name[length - 1] == '\0');
 		name[length] = '\0';	// Hopefully not necessary.
 		return true;
 	}
