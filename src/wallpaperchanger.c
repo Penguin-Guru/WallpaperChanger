@@ -16,6 +16,7 @@
 #include <ftw.h>	// Used for finding new wallpapers.
 #include <magic.h>	// Used for detecting MIME content types.
 #include <unistd.h>	// Used for reading symlinks.
+#include <libgen.h>	// Used for dirname.
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>	// For free.
@@ -32,10 +33,13 @@ extern app_components_t app_components;
 /* Utility functions: */
 
 void clean_up() {
-	if (s_wallpapers) {	// Depends on run mode.
-		for (size_t i = 0; i < s_wallpapers_ct; i++) free(s_wallpapers[i]);
-		free(s_wallpapers);
+	if (s_old_wallpaper_cache.wallpapers) {	// Depends on run mode.
+		for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
+			free(s_old_wallpaper_cache.wallpapers[i].path);
+		}
+		free(s_old_wallpaper_cache.wallpapers);
 	}
+	if (s_current_wallpaper.path) free(s_current_wallpaper.path);
 	if (s_monitors.ct) {
 		for (uint_fast16_t i = 0; i < s_monitors.ct; i--) {
 			free(s_monitors.monitor[i].name);
@@ -304,18 +308,43 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 	}
 }*/
 short populate_wallpaper_cache() {
-	assert(s_wallpapers == NULL);
-	assert(s_wallpapers_ct == 0);
-	tags_t n_criteria = encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	if (s_old_wallpaper_cache.ct || s_old_wallpaper_cache.wallpapers) {
+		fprintf(stderr,
+			"Attempted to re-populate previously initialised cache of old wallpapers. This should not happen.\n"
+				"\tCache count: %zu\n"
+				"\tPointer initialised: %s\n"
+			, s_old_wallpaper_cache.ct
+			, (s_old_wallpaper_cache.wallpapers ? "yes" : "no")
+		);
+		return -1;
+	}
+	tags_t n_criteria =
+		encode_tag(TAG_HISTORIC)	// Do not bias toward wallpapers set more often.
+	;
 	rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria, NULL);
 	if (!rows || rows->ct <= 0) {
 		if (rows) free_rows(rows);
 		return 1;	// Seems new.
 	}
 	// Allocating memory for all rows is inefficient. Fix later.
-	s_wallpapers = (file_path_t*)malloc(sizeof(file_path_t)*rows->ct);
-	for (unsigned int i = 0; i < rows->ct; i++) {
-		const file_path_t fp = rows->row[i]->file;
+	s_old_wallpaper_cache.wallpapers = (wallpaper_info*)malloc(sizeof(wallpaper_info)*rows->ct);
+	for (unsigned int i = 0; i < rows->ct; i++, s_old_wallpaper_cache.ct++) {
+		const row_t *row = rows->row[i];
+
+		// The currently set wallpaper is cached separately.
+		wallpaper_info *cache;
+		if (row->tags & encode_tag(TAG_CURRENT)) {
+			if (s_current_wallpaper.path || s_current_wallpaper.tags) {
+				fprintf(stderr, "Encountered multiple entries for current wallpaper while building cache. Ignoring previous.\n");
+				free(s_current_wallpaper.path);
+			}
+			cache = &s_current_wallpaper;
+			s_old_wallpaper_cache.ct--;	// Eliminate some day.
+		} else {
+			cache = &s_old_wallpaper_cache.wallpapers[s_old_wallpaper_cache.ct];
+		}
+
+		const file_path_t fp = row->file;
 		// Comparing file names may be insufficiently unique.
 		// We will compare path structures relative to wallpaper_path.
 		const file_path_t start_of_relative_path = get_start_of_relative_path(fp);
@@ -340,13 +369,23 @@ short populate_wallpaper_cache() {
 			//decrement_static_wallpapers();
 			continue;
 		}
-		if (! (s_wallpapers[s_wallpapers_ct] = (file_path_t)malloc(len+1))) {
+		if (! (cache->path = (file_path_t)malloc(len+1))) {	// +1 for terminating null.
 			fprintf(stderr, "Failed to allocate memory. Aborting.\n");
 			free_rows(rows);
 			return -1;	// Abort.
 		}
 		assert(start_of_relative_path[len] == '\0');
-		memcpy(s_wallpapers[s_wallpapers_ct++], start_of_relative_path, len+1);
+		memcpy(cache->path, start_of_relative_path, len+1);
+
+		cache->tags = row->tags;
+	}
+	if (!(
+		   s_old_wallpaper_cache.ct +1 == rows->ct	// Account for potential TAG_CURRENT.
+		|| s_old_wallpaper_cache.ct == rows->ct
+	)) {
+		fprintf(stderr, "Unexpected size for old wallpaper cache. Risk of uninitialised memory.\n");
+		free_rows(rows);
+		return -1;
 	}
 	free_rows(rows);
 	return 0;
@@ -356,14 +395,14 @@ short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
 		return -1;	// Abort.
 	}
-	if (s_wallpapers == NULL) {	// Populate the cache if not already done from previous call.
+	if (s_old_wallpaper_cache.ct == 0) {	// Populate the cache if not already done from previous call.
 		short ret;
 		if ((ret = populate_wallpaper_cache()) != 0) return ret;
 	}
-	for (unsigned int i = 0; i < s_wallpapers_ct; i++) {
+	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
 		const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
 		if (!start_of_relative_path) return -1;	// Abort.
-		if (!strcmp(s_wallpapers[i], start_of_relative_path)) return 0;	// Not new (continue search).
+		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;	// Not new (continue search).
 	}
 	return 1;	// Seems new.
 }
@@ -388,7 +427,21 @@ short check_mime_type(const file_path_t filepath) {
 }
 bool is_path_within_path(const file_path_t a, const file_path_t b) {
 	// Tests whether path A is path B or is contained within directory at path B.
-	char *start_of_subpath = strstr(b, a);
+
+	// Files are always within the path of their parent directory.
+	size_t len = strlen(a);
+	char buff_a[len];
+	memcpy(buff_a, a, len+1);	// +1 for terminating null.
+	const char *needle = dirname(buff_a);
+	if (needle[1] == '\0' && needle[0] == '/') {
+		len = strlen(b);
+		char buff_b[len];
+		memcpy(buff_b, b, len+1);	// +1 for terminating null.
+		const char *haystack = dirname(buff_b);
+		if (!(haystack[1] == '\0' && haystack[0] == '/')) return false;
+	}
+
+	char *start_of_subpath = strstr(b, needle);
 	if (!start_of_subpath) return false;
 	if (start_of_subpath - a > 0) return false;
 	return true;
@@ -553,7 +606,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 			// Use cache to select a random wallpaper with the specified path prefix:
 			srand(time(NULL));
 			int i, start;
-			if (s_wallpapers_ct == 0) {
+			if (s_old_wallpaper_cache.ct == 0) {
 				switch (populate_wallpaper_cache()) {
 					case  0: break;
 					case  1:
@@ -565,7 +618,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 						 return false;
 				}
 			}
-			if ((i = start = rand() % s_wallpapers_ct) <= 0) {
+			if ((i = start = rand() % s_old_wallpaper_cache.ct) <= 0) {
 				if (start == 0)
 					if (verbosity)
 						printf("Failed to find a suitable wallpaper in the specified path.\n");
@@ -574,11 +627,22 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 				return false;
 			}
 			do {
-				if (is_path_within_path(s_wallpapers[i], target_path)) {
-					set_new_current(s_wallpapers[i], 0);
+				if (
+					// Make sure it is in the specified directory.
+					is_path_within_path(s_old_wallpaper_cache.wallpapers[i].path, target_path)
+					// Make sure it is not an old entry for the currently set wallpaper.
+					&& strcmp(s_old_wallpaper_cache.wallpapers[i].path, s_current_wallpaper.path)
+				) {
+					const size_t upper_path_len = strlen(get_wallpaper_path());
+					const size_t lower_path_len = strlen(s_old_wallpaper_cache.wallpapers[i].path);
+					char buff[upper_path_len + lower_path_len + 1];	// +1 for terminating null.
+					memcpy(buff, get_wallpaper_path(), upper_path_len);
+					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
+					buff[upper_path_len + lower_path_len] = '\0';
+					set_new_current(buff, s_old_wallpaper_cache.wallpapers[i].tags);
 					return true;
 				}
-				if (++i == s_wallpapers_ct) i = 0;
+				if (++i == s_old_wallpaper_cache.ct) i = 0;
 			} while (i != start);
 
 			if (verbosity) printf("There do not seem to be any valid wallpapers in the specified directory.\n");
@@ -983,6 +1047,9 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// Initialise cache.
+	s_old_wallpaper_cache.ct = 0;
+	s_old_wallpaper_cache.wallpapers = NULL;
 
 	bool status = true;
 	for (param_ct i = 0; i < run_mode_params.ct; i++) {	// Execute requested functions.

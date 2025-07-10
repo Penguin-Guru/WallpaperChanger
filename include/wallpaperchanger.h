@@ -57,8 +57,18 @@ static uint32_t s_target_monitor_id = 0;	// Monitor index, not xcb_randr_output_
 static const char *s_target_monitor_name = NULL;	// Reference user input after loading component.
 
 // Cache used by some functions:
-static size_t s_wallpapers_ct = 0;
-static file_path_t *s_wallpapers = NULL;
+typedef struct wallpaper_info {
+	file_path_t path;
+	tags_t tags;
+} wallpaper_info;
+static struct s_old_wallpaper_cache {
+	size_t ct;
+	wallpaper_info *wallpapers;
+} s_old_wallpaper_cache;
+static wallpaper_info s_current_wallpaper = {
+	.path = NULL,
+	.tags = 0
+};
 
 // Used for tracking directory depth while walking filesystem:
 bool follow_symlinks_beyond_specified_directory = false;
