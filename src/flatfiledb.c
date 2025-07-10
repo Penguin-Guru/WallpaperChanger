@@ -210,10 +210,10 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 	}
 
 	// Use tags_t as bitmask to check tags.
-	tags_t tags;
+	tags_t tags = get_tag_mask(token[3]);
 	if (
-		(!p_criteria || (*p_criteria & (tags = get_tag_mask(token[3]))))	// Positive match criteria.
-		&& (! (n_criteria && (*n_criteria & tags)) )		// Negative match criteria.
+		(!p_criteria || (*p_criteria & tags))		// Positive match criteria.
+		&& (! (n_criteria && (*n_criteria & tags)) )	// Negative match criteria.
 		&& (monitor_name == NULL || !strcasecmp(token[1], monitor_name))
 	) {
 		row_t *row = (row_t*)malloc(sizeof(row_t));
