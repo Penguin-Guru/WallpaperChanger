@@ -58,6 +58,8 @@ This will only work on (more or less) POSIX systems and I have only tested it on
 ### More libraries (you probably already have):
 - unistd.h
 - magic.h
+- ftw.h
+- libgen.h (for dirname)
 - glibc >= 2.38 (or something similar that provides strchrnul)
 
 ### Tool chain:
