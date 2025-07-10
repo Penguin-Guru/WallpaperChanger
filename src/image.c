@@ -20,7 +20,7 @@
  * @param message Error message
 /*/
 static void FreeImageErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) {
-	printf("\n*** FreeImage error:");
+	printf("\n*** FreeImage error:\n");
 	if (fif != FIF_UNKNOWN) printf("\tFormat: %s\n", FreeImage_GetFormatFromFIF(fif));
 	printf("\t%s\n", message);
 	printf("***\n\n");
