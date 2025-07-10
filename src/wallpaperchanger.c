@@ -214,6 +214,8 @@ static file_path_t get_wallpaper_path() {
 /* Intermediary functions: */
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
+	if (verbosity) printf("Setting wallpaper: \"%s\"\n", wallpaper_file_path);
+
 	if (!s_target_monitor_id) {
 		fprintf(stderr, "No target monitor. Aborting.\n");
 		return false;
