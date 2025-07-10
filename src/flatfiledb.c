@@ -201,6 +201,8 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 			);
 		return NULL;
 	}
+	// Since the last column is optional, its token value must be cleared.
+	if (token_len == NUM_COLUMNS - 1) token[NUM_COLUMNS - 1][0] = '\0';
 
 	if (p_criteria != NULL && token_len != NUM_COLUMNS) {
 		// Rows with no tags will never match any specified tags.
