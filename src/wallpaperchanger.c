@@ -810,10 +810,10 @@ bool handle_delete_current(const arg_list_t * const al) {
 	for (num_rows i = 0; i < rows.ct; i++) {	// Delete the files.
 		if (unlink(rows.row[i]->file)) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
 	}
+	free_rows_contents(&rows);
 
 	if (verbosity) printf("Changing the current wallpaper...\n");
 	handle_set_new(NULL);
-	free_rows_contents(&rows);
 	return true;
 }
 
