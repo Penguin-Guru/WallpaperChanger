@@ -320,10 +320,8 @@ short populate_wallpaper_cache() {
 		);
 		return -1;
 	}
-	tags_t n_criteria =
-		encode_tag(TAG_HISTORIC)	// Do not bias toward wallpapers set more often.
-	;
-	rows_t *rows = get_rows_by_tag(data_file_path, NULL, &n_criteria, NULL);
+	num_rows skipped_ct = 0;	// Used for sanity check.
+	rows_t *rows = get_rows_by_tag(data_file_path, NULL, NULL, NULL);
 	if (!rows || rows->ct <= 0) {
 		if (rows) free_rows(rows);
 		return 1;	// Seems new.
@@ -332,6 +330,19 @@ short populate_wallpaper_cache() {
 	s_old_wallpaper_cache.wallpapers = (wallpaper_info*)malloc(sizeof(wallpaper_info)*rows->ct);
 	for (unsigned int i = 0; i < rows->ct; i++, s_old_wallpaper_cache.ct++) {
 		const row_t *row = rows->row[i];
+
+		// TAG_HISTORIC wallpapers are not cached, so as to prevent bias toward more frequently set wallpapers.
+		// They are skipped here, rather than as a negative tag criteria,
+		// 	because we need to cache TAG_CURRENT wallpapers regardless of whether they are historic.
+		// 	This is currently not supported by the database implementation.
+		if (
+			     row->tags & encode_tag(TAG_HISTORIC)
+			&& !(row->tags & encode_tag(TAG_CURRENT))
+		) {
+			s_old_wallpaper_cache.ct--;
+			skipped_ct++;
+			continue;
+		}
 
 		// The currently set wallpaper is cached separately.
 		wallpaper_info *cache;
@@ -366,8 +377,7 @@ short populate_wallpaper_cache() {
 		}
 		const size_t len = strlen(start_of_relative_path);
 		if (!len) {
-			fprintf(stderr, "Invalid path length!\n");
-			free_rows(rows);
+			fprintf(stderr, "Invalid path length. Entry will not be cached.\n");
 			//decrement_static_wallpapers();
 			continue;
 		}
@@ -382,8 +392,8 @@ short populate_wallpaper_cache() {
 		cache->tags = row->tags;
 	}
 	if (!(
-		   s_old_wallpaper_cache.ct +1 == rows->ct	// Account for potential TAG_CURRENT.
-		|| s_old_wallpaper_cache.ct == rows->ct
+		   s_old_wallpaper_cache.ct +1 == rows->ct - skipped_ct	// Account for potential TAG_CURRENT.
+		|| s_old_wallpaper_cache.ct == rows->ct - skipped_ct
 	)) {
 		fprintf(stderr, "Unexpected size for old wallpaper cache. Risk of uninitialised memory.\n");
 		free_rows(rows);
@@ -403,6 +413,7 @@ short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 	}
 	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
 	if (!start_of_relative_path) return -1;	// Abort.
+	assert(s_current_wallpaper.path);
 	if (!strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;	// Not new (continue search).
 	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
 		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;	// Not new (continue search).
