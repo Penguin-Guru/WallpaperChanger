@@ -1168,8 +1168,10 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// Get pixmap to write into:
 	//
 
-	xcb_pixmap_t root_pixmap;
-	bool use_preexisting_root_pixmap;
+	xcb_pixmap_t
+		root_pixmap,
+		old_root_pixmap
+	;
 
 	xcb_get_property_reply_t *esetroot_pmap_id_reply;
 	if ((esetroot_pmap_id_reply = get_property_reply(conn,
@@ -1177,26 +1179,55 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 		XCB_ATOM_PIXMAP, 32/8,
 		1
 	))) {
-		if (verbosity >= 3) printf("Found pre-existing root background. Will write to it directly.\n");
-		use_preexisting_root_pixmap = true;
-		root_pixmap = *(xcb_pixmap_t*)xcb_get_property_value(esetroot_pmap_id_reply);
+		if (verbosity >= 3) printf("Checking pre-existing root background...\n");
+		old_root_pixmap = *(xcb_pixmap_t*)xcb_get_property_value(esetroot_pmap_id_reply);
+
+		// Test whether pixmap exists and has expected dimensions.
+		xcb_get_geometry_cookie_t geo_c = xcb_get_geometry(conn, old_root_pixmap);
+		xcb_get_geometry_reply_t *geo_r;
+		if ((geo_r = xcb_get_geometry_reply(conn, geo_c, &error))) {
+			assert(geo_r->x == 0 && geo_r->y == 0);	// Should always be true for pixmaps.
+			// Not testing geo_r->depth.
+			if (
+				   geo_r->width == monitor->width
+				&& geo_r->height == monitor->height
+			) {
+				// Use "root_pixmap".
+				if (verbosity >= 3) printf("\tWill write to it directly.\n");
+				root_pixmap = old_root_pixmap;
+			} else {
+				fprintf(stderr, "\tX/Y dimension(s) does/do not match target monitor!\n");
+				root_pixmap = 0;	// Null.
+			}
+			free(geo_r);
+		} else {
+			fprintf(stderr, "Failed to get geometry for pre-existing root background.\n");
+			if (error) handle_error(conn, error);
+			// Not clearing value of old_root_pixmap here.
+			// We will try freeing it later, but that will probably fail.
+			root_pixmap = 0;		// Null.
+		}
+
 		p_delete(&esetroot_pmap_id_reply);
 	} else {
-		fprintf(stderr, "No pre-existing root background was found. Creating new one.\n");
-		use_preexisting_root_pixmap = false;
+		if (verbosity >= 3) printf("No pre-existing root background was found.\n");
+		root_pixmap = old_root_pixmap = 0;	// Null.
+	}
+	if (!root_pixmap) {
+		if (verbosity >= 3) printf("A new pixmap will be created for root background.\n");
 		root_pixmap = xcb_generate_id(conn);
 		xcb_create_pixmap_checked(conn,
 			screen->root_depth, root_pixmap, screen->root,
 			screen->width_in_pixels, screen->height_in_pixels
 		);
 		if ((error = xcb_request_check(conn, cookie))) {
-			fprintf(stderr, "Failed to create new root background.\n");
+			fprintf(stderr, "Failed to create new pixmap for root background.\n");
 			handle_error(conn, error);
 			return false;
 		}
 	}
 	assert(root_pixmap);
-	if (verbosity >= 3) printf("Root window background pixmap: \n\t  %u\n\t0x%x\n", root_pixmap, root_pixmap);
+	if (verbosity >= 3) printf("Root window background pixmap to be used: \n\t  %u\n\t0x%x\n", root_pixmap, root_pixmap);
 
 
 
@@ -1301,7 +1332,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// Set pixmap as the root window's background:
 	//
 
-	if (!use_preexisting_root_pixmap) {
+	if (root_pixmap != old_root_pixmap) {
 		cookie = xcb_change_window_attributes_checked(conn, screen->root, XCB_CW_BACK_PIXMAP, &root_pixmap);
 		if ((error = xcb_request_check(conn, cookie))) {
 			fprintf(stderr, "Failed to change window attribute.\n");
@@ -1339,10 +1370,18 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	}
 
 
-	if (!use_preexisting_root_pixmap) {	// If we created a new root window background pixmap.
+	if (
+		root_pixmap != old_root_pixmap	// We are not using the old pixmap.
+		&& old_root_pixmap		// An old pixmap was detected.
+	) {
 		// Free old wallpaper:
-		if (verbosity > 3) printf("Deleting old pixmap from server: \n\t  %u\n\t%#x\n", root_pixmap, root_pixmap);
-		xcb_kill_client(conn, root_pixmap);
+		if (verbosity > 3) printf("Deleting old pixmap from server: \n\t  %u\n\t%#x\n", old_root_pixmap, old_root_pixmap);
+		xcb_kill_client(conn, old_root_pixmap);
+		cookie = xcb_free_pixmap_checked(conn, old_root_pixmap);
+		if ((error = xcb_request_check(conn, cookie))) {
+			fprintf(stderr, "Failed to free pixmap.\n");
+			handle_error(conn, error);
+		}
 	}
 
 
