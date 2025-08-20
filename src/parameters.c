@@ -144,7 +144,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		},
 		.arg_params = (param_arg_parameters_t){
 			.min		= 0,
-			.max		= 0
+			.max		= 1
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11 | COMPONENT_DB,

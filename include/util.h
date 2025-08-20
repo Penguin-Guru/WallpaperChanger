@@ -14,7 +14,7 @@
 typedef unsigned char tags_t;	// Bitmask.
 typedef char timestamp_t[MAX_TIMESTAMP_LENGTH];
 typedef char* file_path_t;
-typedef char* monitor_name_t;
+typedef char* const monitor_name_t;
 
 typedef uint_fast32_t num_rows;
 

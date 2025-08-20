@@ -413,8 +413,7 @@ short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 	}
 	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
 	if (!start_of_relative_path) return -1;	// Abort.
-	assert(s_current_wallpaper.path);
-	if (!strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;	// Not new (continue search).
+	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;	// Not new (continue search).
 	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
 		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;	// Not new (continue search).
 	}
@@ -807,19 +806,31 @@ bool handle_fav_current(const arg_list_t * const al) {
 	return true;
 }
 bool handle_delete_current(const arg_list_t * const al) {
+	assert(al == NULL || (al->ct == 1 && al->args[0] && al->args[0][0]));
+	const monitor_name_t target_monitor_name = (al ? al->args[0] : NULL);
+	// The specified monitor name may not be connected to the system, so no validation is attempted.
+
 	tags_t p_criteria = encode_tag(TAG_CURRENT);
 	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
-	rows_t rows;
-	if (!del_entry_by_tag(&rows, data_file_path, &p_criteria, &n_criteria)) {
+	// Preceeding entries marking the same file as a favourite do not prevent deletion.
+	// 	This should not matter, since the favourite tag should be inherited when those entries are referenced.
+	rows_t rows = {.ct = 0};
+	if (!del_entries(&rows, data_file_path, &p_criteria, &n_criteria, target_monitor_name)) {
 		return false;
 	}
 	if (rows.ct <= 0) {
-		fprintf(stderr, "Nothing was deleted. Is the current wallpaper a favourite?\n");
+		if (verbosity) {
+			fprintf(stderr, "Nothing was deleted.\n");
+			if (verbosity >= 2) {
+				fprintf(stderr, "\tIs the current wallpaper a favourite?\n");
+				if (target_monitor_name) fprintf(stderr, "\tDid you specify the monitor name you intended?\n");
+			}
+		}
 		return false;
 	}
 	printf("Entries deleted from database: %lu\nDeleting files...\n", rows.ct);
 	for (num_rows i = 0; i < rows.ct; i++) {	// Delete the files.
-		if (unlink(rows.row[i]->file)) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
+		if (!unlink(rows.row[i]->file)) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
 	}
 	free_rows_contents(&rows);
 

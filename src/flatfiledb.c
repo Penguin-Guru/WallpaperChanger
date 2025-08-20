@@ -156,7 +156,17 @@ void gen_tag_string(char *string, tags_t tags) {
 	string[total_len] = '\0';	// Terminate the string.
 }
 
-row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *p_criteria, tags_t *n_criteria, const char * const monitor_name) {
+static inline bool is_fp_in_fp_rows(const char match[MAX_COLUMN_LENGTH], const rows_t* within) {
+	for (num_rows i = 0; i < within->ct; i++) {
+		if (!strcasecmp(match, within->row[i]->file)) return true;
+	}
+	return false;
+}
+row_t* get_row_if_match(const num_rows row_num, const char *row_string,
+	tags_t *p_criteria, tags_t *n_criteria,
+	const monitor_name_t monitor_name,
+	const rows_t* p_file_path_rows
+) {
 	static_assert(strlen(COLUMN_DELIMS) > 0, "No column delimiters have been hard-coded.");
 	assert(monitor_name == NULL || monitor_name[0] != '\0');
 	assert(row_num && row_string);
@@ -215,6 +225,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 		(!p_criteria || (*p_criteria & tags))		// Positive match criteria.
 		&& (! (n_criteria && (*n_criteria & tags)) )	// Negative match criteria.
 		&& (monitor_name == NULL || !strcasecmp(token[1], monitor_name))
+		&& (p_file_path_rows == NULL || is_fp_in_fp_rows(token[2], p_file_path_rows))
 	) {
 		row_t *row = (row_t*)malloc(sizeof(row_t));
 
@@ -254,7 +265,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string, tags_t *
 	return NULL;
 }
 
-rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria, const char * const monitor_name) {
+rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria, const monitor_name_t monitor_name) {
 	assert(monitor_name == NULL || monitor_name[0] != '\0');
 	if (n_criteria && p_criteria && (*p_criteria & *n_criteria)) {
 		fprintf(stderr, "Can't match row with conflicting positive and negative match criteria.\n");
@@ -280,7 +291,7 @@ rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t 
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria, monitor_name) ) {
+		if ( row = get_row_if_match(++row_num, string, p_criteria, n_criteria, monitor_name, NULL) ) {
 			if (++num_rows_matched > row_array_size) {
 				row_array_size *= 2;
 				row_array = (row_t**)realloc(row_array, row_array_size * sizeof(row_t*));
@@ -302,7 +313,7 @@ rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t 
 	return NULL;
 }
 
-rows_t* get_current(const file_path_t file_path, const char * const monitor_name) {
+rows_t* get_current(const file_path_t file_path, const monitor_name_t monitor_name) {
 	assert(monitor_name == NULL || monitor_name[0] != '\0');
 
 	tags_t criteria = encode_tag(TAG_CURRENT);
@@ -455,7 +466,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL, NULL) ) {
+		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL, NULL, NULL) ) {
 			char tag_string[Max_Tag_String_Len];	// Name takes precedence over previously defined.
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
@@ -559,7 +570,7 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 	num_rows row_num = 0;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if ( row = get_row_if_match(++row_num, string, criteria, NULL, NULL) ) {
+		if ( row = get_row_if_match(++row_num, string, criteria, NULL, NULL, NULL) ) {
 			if ( (row->tags & *tags_mod) == *tags_mod) {
 				// All tags requested are already associated with the row.
 				fprintf(stderr, "Database entry already associated with all requested tags. Ignoring.\n");
@@ -603,8 +614,15 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 	return true;
 }*/
 
-rows_t* del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria) {
+rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
+	tags_t *p_criteria, tags_t *n_criteria,
+	const monitor_name_t monitor_name
+) {
+	assert(ret_rows == NULL || ret_rows->ct == 0);
+	assert(db_file_path && db_file_path[0]);
 	assert(!(n_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
+	assert(monitor_name == NULL || monitor_name[0] != '\0');
+
 	bool allocated_ret;
 	if (ret_rows == NULL) {
 		if (!(ret_rows = malloc(sizeof(rows_t)))) {
@@ -614,21 +632,10 @@ rows_t* del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *
 		allocated_ret = true;
 	} else allocated_ret = false;
 	assert(ret_rows);
-	ret_rows->ct = 0;
 
-	FILE *f = fopen(file_path, "r"); if (f==0) return NULL;
+	FILE *f = fopen(db_file_path, "r"); if (f==0) return NULL;
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
-		fclose(f);
-		return NULL;
-	}
-
-	char tmp_path[] = "/tmp/fileXXXXXX";
-	int fd = mkstemp(tmp_path);
-	close(fd);
-	if (!tmp_path) return NULL;
-	FILE *tmp = fopen(tmp_path, "w");
-	if (tmp==0) {
 		fclose(f);
 		return NULL;
 	}
@@ -636,44 +643,91 @@ rows_t* del_entry_by_tag(rows_t *ret_rows, const file_path_t file_path, tags_t *
 	char *string = NULL;
 	size_t size = 0;
 	num_rows row_num = 0;
+
+	//
+	// File is, unfortunately, read through twice.
+	// This is to detect earlier entries referring to the same files as later entries.
+	//
+
+	// Stage 1: Cache matching entries.
+	// Heap is used because we want to return the matched entries to the calling function anyway.
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if (!(row = get_row_if_match(++row_num, string, p_criteria, n_criteria, NULL))) {
+		if ((row = get_row_if_match(++row_num, string, p_criteria, n_criteria, monitor_name, NULL))) {
+			// Row matches query-- cache for targeting in next stage.
+			if (ret_rows->ct == 0) {
+				if (!(ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
+					fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);
+					free(string);
+					fclose(f);
+					if (allocated_ret) free_rows(ret_rows);
+					else free_rows_contents(ret_rows);
+					return NULL;
+				}
+			} else {
+				void *tmp;
+				if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
+					fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
+					free(string);
+					fclose(f);
+					if (allocated_ret) free_rows(ret_rows);
+					else free_rows_contents(ret_rows);
+					return NULL;
+				}
+				if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
+			}
+			ret_rows->row[ret_rows->ct++] = row;
+		}
+	}
+
+	if (ret_rows->ct == 0) {
+		fclose(f);
+		return ret_rows;
+	}
+
+	// Stage 2: parse from beginning again, to match preceeding entries refering to the same files matched in Stage 1.
+	// Note: This pass is still subject to the specified negative tag and monitor name criteria.
+	// 	(We simply match based on file paths instead of positive tag criteria.)
+	// This time we are also writing to a temp file.
+
+	char tmp_path[] = "/tmp/fileXXXXXX";
+	int fd = mkstemp(tmp_path);
+	close(fd);
+	if (!tmp_path) return NULL;
+	FILE *tmp = fopen(tmp_path, "w+");
+	if (tmp==0) {
+		fclose(f);
+		return NULL;
+	}
+
+	rewind(f);
+	while (getline(&string, &size, f) > 0) {
+		row_t *row;
+		if (!(row = get_row_if_match(++row_num, string, NULL, n_criteria, monitor_name, ret_rows))) {
 			// Row does not match. Ignore it.
 			fputs(string, tmp);
 			continue;
 		}
 		// Row matches query-- do not write it to the temp file.
 		// Instead, we will load it onto the heap for return to caller.
-		if (ret_rows->ct == 0) {
-			if (!(ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
-				fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);
-				free(string);
-				fclose(f);
-				if (allocated_ret) free_rows(ret_rows);
-				else free_rows_contents(ret_rows);
-				return NULL;
-			}
-		} else {
-			void *tmp;
-			if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
-				fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
-				free(string);
-				fclose(f);
-				if (allocated_ret) free_rows(ret_rows);
-				else free_rows_contents(ret_rows);
-				return NULL;
-			}
-			if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
+		void *tmp;
+		if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
+			fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
+			free(string);
+			fclose(f);
+			if (allocated_ret) free_rows(ret_rows);
+			else free_rows_contents(ret_rows);
+			return NULL;
 		}
+		if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
 		ret_rows->row[ret_rows->ct++] = row;
 	}
-	free(string);
 
+	free(string);
 	fclose(f);
 	fclose(tmp);
-	if (rename(tmp_path, file_path)) {
-		fprintf(stderr, "Failed to replace database with temp file.\n\t%s\n\t%s\n", tmp_path, file_path);
+	if (rename(tmp_path, db_file_path)) {
+		fprintf(stderr, "Failed to replace database with temp file.\n\t%s\n\t%s\n", tmp_path, db_file_path);
 		return NULL;
 	}
 	return ret_rows;
