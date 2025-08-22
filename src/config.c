@@ -65,7 +65,6 @@ bool parse_line(const char * const line) {
 			);
 			uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
 			if (strlen(buff) == skip) continue;
-			//args[arg_ct++] = buff + skip;
 			int wordexp_error;
 			if ((wordexp_error = wordexp(buff + skip, &shell_expanded, 0))) {
 				char *wordexp_error_string;

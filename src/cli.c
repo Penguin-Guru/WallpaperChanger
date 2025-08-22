@@ -36,8 +36,6 @@ static inline void print_arg_mismatch(param_name name, const param_arg_parameter
 
 
 parameter_t *param_buff = NULL;
-// Using the heap like this feel very inefficient, but I'm not sure of a better way to avoid arbitrary length limits.
-// args_buff is currently realloc'd to accommodate each new argument per parameter. Optimise later.
 arg_list_t args_buff = {};
 
 static inline bool push_param_buff() {	// For parameters with arguments.
@@ -166,7 +164,7 @@ bool parse_params(int argc, char** argv) {
 			free_args(&args_buff);
 			return false;
 		}
-		// We now know that the parameter is a flag-- it begins with a '-' character.
+		// We now know that the parameter is a flag-- it begins with (and is not only) a single hyphen.
 		push_param_if_terms_pending(terms_pending, param_buff);
 		if (argvi[1] == '-') {	// Long form flag ("--").
 			// If parameter is only two hyphens, respect convention to stop processing parameters.

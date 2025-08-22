@@ -8,7 +8,6 @@ typedef struct {
 	const char *file;
 	unsigned int width;
 	unsigned int height;
-	unsigned int bytes_per_row, scan_width;	// Redundant. Fix later.
 
 	size_t data_len;
 	BYTE *pixels;

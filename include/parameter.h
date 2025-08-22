@@ -49,7 +49,6 @@ typedef struct {
 } handler_set_t;
 
 typedef char* const flag_t;
-// It may be more clear for flag_t to be renamed flag_value_t.
 typedef flag_t long_flag_t;	// Support multi-character short flags (for now).
 typedef flag_t short_flag_t;
 typedef struct {

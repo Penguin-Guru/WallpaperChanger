@@ -44,7 +44,6 @@ image_t* get_image_size(const char *wallpaper_file_path) {
 	image_t *img = (image_t*)malloc(sizeof(image_t));
 	img->width = FreeImage_GetWidth(bitmap);
 	img->height = FreeImage_GetHeight(bitmap);
-	//img->bpp = FreeImage_GetBPP(bitmap);
 
 	FreeImage_Unload(bitmap);
 	FreeImage_DeInitialise();
@@ -155,8 +154,6 @@ image_t* get_pixel_data(
 	image_t *img = (image_t*)malloc(sizeof(image_t));
 	img->width = img_x;
 	img->height = img_y;
-	img->bytes_per_row = bytes_per_row;
-	img->scan_width = scan_width;
 
 	img->data_len = (bytes_per_row * img_y);
 
