@@ -20,7 +20,7 @@ bool handle_config_file(const arg_list_t * const al) {
 	param_arg_ct remaining = al->ct;
 	while (remaining-- > 0) {
 		// Note: "remaining" now points to the file index, not one ahead.
-		if (parse_file(al->args[remaining])) num_config_files_loaded++;
+		if (parse_config_file(al->args[remaining], false)) num_config_files_loaded++;
 		else return false;
 	}
 	return true;
@@ -145,8 +145,11 @@ static inline const char* load_default_config_file() {
 	config_path[dir_len + name_len] = '\0';
 
 	file_path_t silly = config_path;
-	arg_list_t this_is_stupid = {1, &silly};
-	handle_config_file(&this_is_stupid);
+        /*
+	 * arg_list_t this_is_stupid = {1, &silly};
+	 * handle_config_file(&this_is_stupid);
+        */
+	parse_config_file(silly, true);
 
 	return NULL;	// Success condition: no error message.
 }

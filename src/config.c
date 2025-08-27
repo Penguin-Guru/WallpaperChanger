@@ -7,7 +7,6 @@
 #	endif	// <sys/stat.h>
 #endif	// __has_include
 
-#include <sys/stat.h>
 #include <wordexp.h>	// For wordexp and wordfree.
 #include <string.h>
 #include <stdlib.h>	// For free.
@@ -15,6 +14,9 @@
 #include <assert.h>
 #include <stdint.h>
 #include <math.h>	// For powf.
+#include <errno.h>
+#include <libgen.h>	// For dirname.
+#include <unistd.h>	// For access.
 #include "config.h"
 #include "init.h"
 #include "verbosity.h"
@@ -27,7 +29,7 @@
 #define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
 
 
-bool parse_line(const char * const line) {
+bool parse_config_line(const char * const line) {
 	char *op;
 	if ((op = strpbrk(line, KEY_VALUE_DELIMS))) {
 		uint_fast16_t len = op - line;	// Data type limits max row length.
@@ -149,28 +151,42 @@ size_t clip_trailing_chars(char *start, char *end, const char *chars) {
 	return 0;
 }
 
-bool parse_file(const file_path_t const file_path) {
-	// Not currently offering to create the file.
-
-	struct stat info;
-	if (stat(file_path, &info)) {
-		fprintf(stderr, "Failed to stat config file at path: \"%s\"\n", file_path);
-		return false;
-	}
-	if (! (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode) )) {
-		fprintf(stderr, "Supposed config file is not a regular file or symlink: \"%s\"\n", file_path);
-		return false;
-	}
-
-	/*if (!access(file_path, R_OK)) {
-		fprintf(stderr, "Denied permission to read config file: \"%s\"\n", file_path);
-		return false;
-	}*/
-
-
-	FILE *f = fopen(file_path, "r");
-	if (!f){
-		fprintf(stderr, "Failed to open config file: \"%s\"\n", file_path);
+bool parse_config_file(const file_path_t const file_path, const bool is_default_config_path) {
+	FILE *f;
+	if (!(f = fopen(file_path, "r"))) {
+		// A missing config file is not necessarily considered an error here.
+		int err = errno;
+		const char *description = NULL;
+		if (is_default_config_path) {
+			switch (err) {
+				case ENOENT :	// Flows down.
+				case EACCES :
+					// This case catches and accepts non-existance of the default config file.
+					// Such cases are still considered an error if a parent directory either...
+					// 	Was somehow deleted.
+					// 	Became a dangling symbolic link.
+					size_t dir_len = strlen(file_path);
+					char dir[dir_len+1];
+					strcpy(dir, file_path);
+					dirname(dir);
+					if (access(dir, X_OK) == -1) description = "Failed to access default config directory.";
+					else {
+						// Default config directory exists and user has access to search within it.
+						if (access(file_path, F_OK) == -1) {
+							// Only the default config file is missing-- this is not an error.
+							if (verbosity >= 2) printf("No config file to read.\n");
+							return false;
+						}
+						// File does exist-- presumably the user did not have permission to read it.
+						description = "Config file exists but could not be read-- check file permissions.";
+					}
+			}
+		}
+		// description may be null if !is_default_config_path or no switch cases apply.
+		if (!description) description = "Failed to open config file.";
+		fprintf(stderr, "%s\n", description);
+		errno = err;
+		perror("\tperror says");
 		return false;
 	}
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
@@ -189,7 +205,7 @@ bool parse_file(const file_path_t const file_path) {
 		if (parse_end - parse_start == 0) continue;				// The whole line is a comment. Ignore it.
 		clip_trailing_chars(parse_start, parse_end, WHITESPACE_CHARACTERS);	// Trim trailing whitespace. (unnecessary)
 		// Finished pre-processing. Proceed to main parsing of line.
-		if (!parse_line(parse_start)) {
+		if (!parse_config_line(parse_start)) {
 			fprintf(stderr,
 				"Invalid line in config file: \"%s\"\n"
 					"\tInvalid line is: \"%s\"\n"
