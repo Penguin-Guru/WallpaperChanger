@@ -28,6 +28,10 @@
 #define KEY_VALUE_DELIMS "=:" WHITESPACE_CHARACTERS
 #define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
 
+// This is sized to contain the max value for data type of "skip" in parse_config_line().
+// 255 = floorf(powf(2, sizeof(uint_fast8_t)*8))-1	// -1 to exclude 0 from count.
+#define MAX_CONFIG_COLUMN_LENGTH 255
+
 
 bool parse_config_line(const char * const line) {
 	char *op;
@@ -60,13 +64,26 @@ bool parse_config_line(const char * const line) {
 			;buff != NULL && arg_ct <= etc;
 			buff = strtok_r(NULL, VALUE_DELIMS, &saveptr)
 		) {
+			if (strlen(buff) >= MAX_CONFIG_COLUMN_LENGTH) {
+				fprintf(stderr,
+					"Column in config file exceeds maximum supported length. Aborting execution.\n"
+					"\t         Column text: \"%s\"\n"
+					"\t       Column length: %zd\n"
+					"\tMax supported length: %hu\n"
+					, buff
+					, strlen(buff)
+					, MAX_CONFIG_COLUMN_LENGTH
+				);
+				return false;
+			}
 			// Skip key/value delims (that aren't whitespace) in case they were not separated by whitespace.
 			static_assert(
-				((unsigned short)floorf(powf(2,(sizeof(uint_fast8_t)*8)))) >= MAX_COLUMN_LENGTH,
-				"skip data type must be sized to fit potential column length"
+				((unsigned short)floorf(powf(2,(sizeof(uint_fast8_t)*8)))) >= MAX_CONFIG_COLUMN_LENGTH,
+				"Data type of \"skip\" must be sized to fit potential column length"
 			);
 			uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
 			if (strlen(buff) == skip) continue;
+
 			int wordexp_error;
 			if ((wordexp_error = wordexp(buff + skip, &shell_expanded, 0))) {
 				char *wordexp_error_string;
