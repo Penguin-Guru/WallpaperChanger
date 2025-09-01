@@ -109,7 +109,8 @@ static inline bool is_fp_in_fp_rows(const char match[MAX_COLUMN_LENGTH], const r
 	return false;
 }
 row_t* get_row_if_match(const num_rows row_num, const char *row_string,
-	tags_t *p_criteria, tags_t *n_criteria,
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,
 	const monitor_name_t monitor_name,
 	const rows_t* p_file_path_rows
 ) {
@@ -211,7 +212,11 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string,
 	return NULL;
 }
 
-rows_t* get_rows_by_tag(const file_path_t file_path, tags_t *p_criteria, tags_t *n_criteria, const monitor_name_t monitor_name) {
+rows_t* get_rows_by_tag(const file_path_t file_path,
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,
+	const monitor_name_t monitor_name
+) {
 	assert(monitor_name == NULL || monitor_name[0] != '\0');
 	if (n_criteria && p_criteria && (*p_criteria & *n_criteria)) {
 		fprintf(stderr, "Can't match row with conflicting positive and negative match criteria.\n");
@@ -561,7 +566,8 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 }*/
 
 rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
-	tags_t *p_criteria, tags_t *n_criteria,
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,
 	const monitor_name_t monitor_name
 ) {
 	assert(ret_rows == NULL || ret_rows->ct == 0);
@@ -648,7 +654,7 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 
 	rewind(f);
 	// Previous positive tag criteria is added to the negative criteria, to prevent caching the same entries twice.
-	tags_t sum_criteria = *n_criteria | *p_criteria;
+	const tags_t sum_criteria = *n_criteria | *p_criteria;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
 		if (!(row = get_row_if_match(++row_num, string, NULL, &sum_criteria, monitor_name, ret_rows))) {

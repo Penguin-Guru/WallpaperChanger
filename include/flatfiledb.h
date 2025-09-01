@@ -55,15 +55,15 @@ void gen_tag_string(char *string, tags_t tags);
 row_t* get_row_if_match(
 	const num_rows row_num,
 	const char *row_string,
-	tags_t *p_criteria,
-	tags_t *n_criteria,			// Optional-- set to NULL.
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,	// Optional-- set to NULL.
 	const monitor_name_t monitor_name,	// Optional-- set to NULL.
 	const rows_t* p_file_path_rows		// Optional-- set to NULL.
 );
 rows_t* get_rows_by_tag(
 	const file_path_t file_path,
-	tags_t *p_criteria,
-	tags_t *n_criteria,			// Optional-- set to NULL.
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,	// Optional-- set to NULL.
 	const monitor_name_t monitor_name	// Optional-- set to NULL.
 );
 rows_t* get_current(
@@ -78,8 +78,8 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 rows_t* del_entries(
 	rows_t *ret_rows,
 	const file_path_t file_path,
-	tags_t *p_criteria,
-	tags_t *n_criteria,			// Optional-- set to NULL.
+	const tags_t * const p_criteria,
+	const tags_t * const n_criteria,	// Optional-- set to NULL.
 	const monitor_name_t monitor_name	// Optional-- set to NULL.
 );
 
