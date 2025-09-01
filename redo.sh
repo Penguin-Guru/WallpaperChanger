@@ -25,6 +25,7 @@ declare -a project_libs=(
 	libxdgbasedir
 	config
 	init
+	db
 	flatfiledb
 	graphics
 	image
