@@ -113,6 +113,8 @@ bool parse_config_line(const char * const line) {
 					, buff + skip
 					, wordexp_error_string
 				);
+				wordfree(&shell_expanded);
+				return false;
 			}
 			args[arg_ct++] = shell_expanded.we_wordv[0];
 			// wordfree(&shell_expanded) would supposedly only free the value string, which we need. Free later.
