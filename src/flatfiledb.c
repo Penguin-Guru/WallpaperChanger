@@ -647,9 +647,11 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 	}
 
 	rewind(f);
+	// Previous positive tag criteria is added to the negative criteria, to prevent caching the same entries twice.
+	tags_t sum_criteria = *n_criteria | *p_criteria;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if (!(row = get_row_if_match(++row_num, string, NULL, n_criteria, monitor_name, ret_rows))) {
+		if (!(row = get_row_if_match(++row_num, string, NULL, &sum_criteria, monitor_name, ret_rows))) {
 			// Row does not match. Ignore it.
 			fputs(string, tmp);
 			continue;
