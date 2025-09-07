@@ -600,9 +600,21 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 	switch (statbuff.st_mode & S_IFMT) {
 		case S_IFREG:
 			// Path refers to regular file. Attempt to use it.
+
+			// Apply tags if file has been set before.
+			enum Tag tags = TAG_CURRENT;
+			const file_path_t sorp = get_start_of_relative_path(target_path);
+			if (s_old_wallpaper_cache.ct == 0) populate_wallpaper_cache();
+			for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
+				if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, sorp)) {
+					tags |= s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC);
+					break;
+				}
+			}
+
 			//target_wallpaper = target_path;
 			//break;
-			set_new_current(target_path, 0);
+			set_new_current(target_path, tags);
 			return true;
 		case S_IFDIR: {
 			// Path refers to a directory.
@@ -664,7 +676,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 					memcpy(buff, get_wallpaper_path(), upper_path_len);
 					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
 					buff[upper_path_len + lower_path_len] = '\0';
-					set_new_current(buff, s_old_wallpaper_cache.wallpapers[i].tags);
+					set_new_current(buff, s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC));
 					return true;
 				}
 				if (++i == s_old_wallpaper_cache.ct) i = 0;
