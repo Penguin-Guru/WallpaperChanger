@@ -842,7 +842,8 @@ bool handle_delete_current(const arg_list_t * const al) {
 	}
 	printf("Entries deleted from database: %lu\nDeleting files...\n", rows.ct);
 	for (num_rows i = 0; i < rows.ct; i++) {	// Delete the files.
-		if (!unlink(rows.row[i]->file)) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
+		// Note: non-existant files are silently ignored.
+		if (unlink(rows.row[i]->file) == -1) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
 	}
 	free_rows_contents(&rows);
 
