@@ -34,8 +34,10 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 		.handler_set = (handler_set_t){
 			.name		= "set",
 			.description	=
-				"Set a specific wallpaper or a wallpaper from a specific directory as active/current."
-					"\n\t\t\tNote: When searching directories..."
+				"Change the active/current wallpaper."
+					"\n\t\t\tSpecified path must be within the (default, unless configured) wallpaper path."
+					"\n\t\t\tIf no file or directory is specified, the top level directory is used."
+					"\n\t\t\tWhen searching directories..."
 						"\n\t\t\t\tNew wallpapers are preferred when available."
 						"\n\t\t\t\tSelection of previously used wallpapers is randomised."
 				,
@@ -47,7 +49,7 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 			.short_flag 	= "s"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
+			.min		= 0,
 			.max		= 1
 		},
 		.type = RUN,

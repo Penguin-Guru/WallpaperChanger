@@ -575,9 +575,21 @@ int search_for_wallpaper(
 /* Parameter handlers: */
 
 bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren't necessary.
-	assert(al->ct == 1);
-	assert(al->args[0]);
-	file_path_t target_path = al->args[0];
+	assert(al == NULL || (al->ct == 1 && al->args[0]));
+	const file_path_t target_path = al ? al->args[0] : get_wallpaper_path();
+
+	if (!is_path_within_path(get_wallpaper_path(), target_path)) {
+		fprintf(stderr,
+			"Target path is not within configured wallpaper directory.\n"
+				"\tTarget path: \"%s\"\n"
+				"\tWallpaper directory: \"%s\"\n"
+			, target_path
+			, get_wallpaper_path()
+		);
+		return false;
+	}
+
+	if (verbosity >= 3) printf("Target path for set wallpaper: \"%s\"\n", target_path);
 
 	// Check whether specified path refers to a regular file or directory.
 	struct stat statbuff;
