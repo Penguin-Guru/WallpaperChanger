@@ -848,7 +848,7 @@ bool handle_delete_current(const arg_list_t * const al) {
 	free_rows_contents(&rows);
 
 	if (verbosity) printf("Changing the current wallpaper...\n");
-	handle_set_new(NULL);
+	handle_set(NULL);
 	return true;
 }
 
