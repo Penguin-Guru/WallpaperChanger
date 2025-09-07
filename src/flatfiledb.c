@@ -653,15 +653,21 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 	}
 
 	rewind(f);
-	// Previous positive tag criteria is added to the negative criteria, to prevent caching the same entries twice.
-	const tags_t sum_criteria = *n_criteria | *p_criteria;
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
-		if (!(row = get_row_if_match(++row_num, string, NULL, &sum_criteria, monitor_name, ret_rows))) {
-			// Row does not match. Ignore it.
-			fputs(string, tmp);
-			continue;
+		if (!(row = get_row_if_match(++row_num, string, NULL, n_criteria, monitor_name, ret_rows))) {
+			// Row does not match-- ignore it.
+			fputs(string, tmp);	// Write it to the temp file-- do not delete database entry.
+			free_row(row);
+			continue;		// Do not cache it for return to caller.
 		}
+		if (row->tags & *p_criteria) {
+			// Row should already have been cached in Stage 1.
+			// Not matched above because we do not want to write such rows to the temp file.
+			free_row(row);
+			continue;	// Should already be cached.
+		}
+
 		// Row matches query-- do not write it to the temp file.
 		// Instead, we will load it onto the heap for return to caller.
 		void *tmp;
