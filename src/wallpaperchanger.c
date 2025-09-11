@@ -415,7 +415,7 @@ short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 		if ((ret = populate_wallpaper_cache()) != 0) return ret;
 	}
 	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
-	if (!start_of_relative_path) return -1;	// Abort.
+	if (!start_of_relative_path) return -1;	// Abort (without reporting error for each such file).
 	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;	// Not new (continue search).
 	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
 		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;	// Not new (continue search).
