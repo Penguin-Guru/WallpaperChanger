@@ -581,7 +581,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 	assert(al == NULL || (al->ct == 1 && al->args[0]));
 	const file_path_t const target_path = al ? al->args[0] : get_wallpaper_path();
 
-	if (!is_path_within_path(get_wallpaper_path(), target_path)) {
+	if (!is_path_within_path(target_path, get_wallpaper_path())) {
 		fprintf(stderr,
 			"Target path is not within configured wallpaper directory.\n"
 				"\tTarget path: \"%s\"\n"
