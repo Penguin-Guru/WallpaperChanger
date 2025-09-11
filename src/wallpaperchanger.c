@@ -381,6 +381,8 @@ short populate_wallpaper_cache() {
 		const size_t len = strlen(start_of_relative_path);
 		if (!len) {
 			fprintf(stderr, "Invalid path length. Entry will not be cached.\n");
+			skipped_ct++;
+			s_old_wallpaper_cache.ct--;	// Eliminate some day.
 			//decrement_static_wallpapers();
 			continue;
 		}
