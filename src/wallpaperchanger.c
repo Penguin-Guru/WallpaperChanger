@@ -321,7 +321,7 @@ short populate_wallpaper_cache() {
 			, s_old_wallpaper_cache.ct
 			, (s_old_wallpaper_cache.wallpapers ? "yes" : "no")
 		);
-		return -1;
+		return -1;	// Abort.
 	}
 	num_rows skipped_ct = 0;	// Used for sanity check.
 	rows_t *rows = get_rows_by_tag(data_file_path, NULL, NULL, NULL);
