@@ -644,8 +644,6 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 
 			// No new wallpaper was available.
 			// Use cache to select a random wallpaper with the specified path prefix:
-			srand(time(NULL));
-			int i, start;
 			if (s_old_wallpaper_cache.ct == 0) {
 				switch (populate_wallpaper_cache()) {
 					case  0: break;
@@ -657,13 +655,17 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 						 fprintf(stderr, "Unknown return value from populate_wallpaper_cache().\n");
 						 return false;
 				}
+				if (s_old_wallpaper_cache.ct == 0) {
+					if (verbosity) printf("Failed to find a suitable wallpaper in the specified path.\n");
+					return false;
+				}
 			}
-			if ((i = start = rand() % s_old_wallpaper_cache.ct) <= 0) {
-				if (start == 0)
-					if (verbosity)
-						printf("Failed to find a suitable wallpaper in the specified path.\n");
-				else
-					fprintf(stderr, "Integer overflow while attempting to generate a random start position within wallpaper file cache.\n");
+			assert(s_old_wallpaper_cache.ct > 0);
+			assert(s_old_wallpaper_cache.wallpapers);
+			srand(time(NULL));
+			int start, i;
+			if ((i = start = rand() % s_old_wallpaper_cache.ct) < 0) {
+				fprintf(stderr, "Integer overflow while attempting to generate a random start position within wallpaper file cache.\n");
 				return false;
 			}
 			do {
