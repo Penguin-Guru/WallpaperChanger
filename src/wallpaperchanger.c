@@ -669,11 +669,12 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 				fprintf(stderr, "Integer overflow while attempting to generate a random start position within wallpaper file cache.\n");
 				return false;
 			}
+			const file_path_t const relative_target = target_path + strlen(get_wallpaper_path());
 			do {
 				assert(s_old_wallpaper_cache.wallpapers[i].path);
 				if (
 					// Make sure it is in the specified directory.
-					is_path_within_path(s_old_wallpaper_cache.wallpapers[i].path, target_path)
+					is_path_within_path(s_old_wallpaper_cache.wallpapers[i].path, relative_target)
 					// Make sure it is not an old entry for the currently set wallpaper.
 					&& (
 						!s_current_wallpaper.path
