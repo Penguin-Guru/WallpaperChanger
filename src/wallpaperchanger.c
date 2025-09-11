@@ -33,7 +33,7 @@ extern app_components_t app_components;
 /* Utility functions: */
 
 void clean_up() {
-	if (s_old_wallpaper_cache.wallpapers) {	// Depends on run mode.
+	if (s_old_wallpaper_cache.ct) {	// Depends on run mode.
 		for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
 			free(s_old_wallpaper_cache.wallpapers[i].path);
 		}
