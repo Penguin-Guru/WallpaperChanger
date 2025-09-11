@@ -579,7 +579,7 @@ int search_for_wallpaper(
 
 bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren't necessary.
 	assert(al == NULL || (al->ct == 1 && al->args[0]));
-	const file_path_t target_path = al ? al->args[0] : get_wallpaper_path();
+	const file_path_t const target_path = al ? al->args[0] : get_wallpaper_path();
 
 	if (!is_path_within_path(get_wallpaper_path(), target_path)) {
 		fprintf(stderr,
@@ -607,6 +607,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 			// Apply tags if file has been set before.
 			enum Tag tags = TAG_CURRENT;
 			const file_path_t sorp = get_start_of_relative_path(target_path);
+			assert(sorp && sorp[0]);	// Already confirmed that target_path is within wallpaper_path.
 			if (s_old_wallpaper_cache.ct == 0) populate_wallpaper_cache();
 			for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
 				if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, sorp)) {
@@ -669,6 +670,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 				return false;
 			}
 			do {
+				assert(s_old_wallpaper_cache.wallpapers[i].path);
 				if (
 					// Make sure it is in the specified directory.
 					is_path_within_path(s_old_wallpaper_cache.wallpapers[i].path, target_path)
