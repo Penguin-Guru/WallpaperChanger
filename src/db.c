@@ -30,8 +30,8 @@
 
 inline void free_row(row_t *r) {
 	if (!r) return;
-	if (r->file) free(r->file);
-	if (r->monitor_name) free(r->monitor_name);
+	free(r->file);
+	free(r->monitor_name);
 	free(r);
 }
 inline void free_rows_contents(rows_t *target) {
