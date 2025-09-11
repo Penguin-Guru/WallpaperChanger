@@ -675,7 +675,10 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 					// Make sure it is in the specified directory.
 					is_path_within_path(s_old_wallpaper_cache.wallpapers[i].path, target_path)
 					// Make sure it is not an old entry for the currently set wallpaper.
-					&& strcmp(s_old_wallpaper_cache.wallpapers[i].path, s_current_wallpaper.path)
+					&& (
+						!s_current_wallpaper.path
+						|| strcmp(s_old_wallpaper_cache.wallpapers[i].path, s_current_wallpaper.path)
+					)
 				) {
 					const size_t upper_path_len = strlen(get_wallpaper_path());
 					const size_t lower_path_len = strlen(s_old_wallpaper_cache.wallpapers[i].path);
