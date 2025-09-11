@@ -565,30 +565,45 @@ num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *t
 	return true;
 }*/
 
-rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
+static inline void cleanup_del_entries(const bool allocated_ret, rows_t * const rows, FILE *f, char *string) {
+	free(string);
+	fclose(f);
+	if (allocated_ret) free_rows_contents(rows);
+	else free_rows_contents(rows);
+}
+db_entries_operated_t* del_entries(db_entries_operated_t *ret, const file_path_t db_file_path,
 	const tags_t * const p_criteria,
 	const tags_t * const n_criteria,
 	const monitor_name_t monitor_name
 ) {
-	assert(ret_rows == NULL || ret_rows->ct == 0);
 	assert(db_file_path && db_file_path[0]);
 	assert(!(n_criteria && (*p_criteria & *n_criteria)) && "Conflicting positive and negative match criteria.");
 	assert(monitor_name == NULL || monitor_name[0] != '\0');
 
 	bool allocated_ret;
-	if (ret_rows == NULL) {
-		if (!(ret_rows = malloc(sizeof(rows_t)))) {
+	if (ret) {
+		assert(ret->rows.ct == 0);
+		allocated_ret = false;
+	} else {
+		if (!(ret = malloc(sizeof(db_entries_operated_t)))) {
 			fprintf(stderr, "Failed to allocate memory on heap.\n");
 			return NULL;
 		}
 		allocated_ret = true;
-	} else allocated_ret = false;
+		ret->rows.ct = 0;
+	}
+	assert(ret);
+	rows_t * const ret_rows = &ret->rows;
 	assert(ret_rows);
 
-	FILE *f = fopen(db_file_path, "r"); if (f==0) return NULL;
+	FILE *f = fopen(db_file_path, "r");
+	if (f==0) {
+		cleanup_del_entries(allocated_ret, ret_rows, NULL, NULL);
+		return NULL;
+	}
 	fseek(f,0,SEEK_END); long len = ftell(f); fseek(f,0,SEEK_SET);
 	if (len == -1) {
-		fclose(f);
+		cleanup_del_entries(allocated_ret, ret_rows, f, NULL);
 		return NULL;
 	}
 
@@ -610,20 +625,14 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 			if (ret_rows->ct == 0) {
 				if (!(ret_rows->row = (row_t**)malloc(sizeof(row_t*)))) {
 					fprintf(stderr, "Failed to allocate initial memory for row #%lu. Terminating prematurely.\n", row_num);
-					free(string);
-					fclose(f);
-					if (allocated_ret) free_rows(ret_rows);
-					else free_rows_contents(ret_rows);
+					cleanup_del_entries(allocated_ret, ret_rows, f, string);
 					return NULL;
 				}
 			} else {
 				void *tmp;
 				if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
 					fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
-					free(string);
-					fclose(f);
-					if (allocated_ret) free_rows(ret_rows);
-					else free_rows_contents(ret_rows);
+					cleanup_del_entries(allocated_ret, ret_rows, f, string);
 					return NULL;
 				}
 				if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
@@ -632,9 +641,10 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 		}
 	}
 
-	if (ret_rows->ct == 0) {
-		fclose(f);
-		return ret_rows;
+	if ( (ret->ct = ret_rows->ct) == 0) {
+		// No matching entries in database. Return with zero count.
+		cleanup_del_entries(allocated_ret, ret_rows, f, string);
+		return ret;
 	}
 
 	// Stage 2: parse from beginning again, to match preceeding entries refering to the same files matched in Stage 1.
@@ -645,10 +655,13 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 	char tmp_path[] = "/tmp/fileXXXXXX";
 	int fd = mkstemp(tmp_path);
 	close(fd);
-	if (!tmp_path) return NULL;
+	if (!tmp_path) {
+		cleanup_del_entries(allocated_ret, ret_rows, f, string);
+		return NULL;
+	}
 	FILE *tmp = fopen(tmp_path, "w+");
 	if (tmp==0) {
-		fclose(f);
+		cleanup_del_entries(allocated_ret, ret_rows, f, string);
 		return NULL;
 	}
 
@@ -688,8 +701,9 @@ rows_t* del_entries(rows_t *ret_rows, const file_path_t db_file_path,
 	fclose(tmp);
 	if (rename(tmp_path, db_file_path)) {
 		fprintf(stderr, "Failed to replace database with temp file.\n\t%s\n\t%s\n", tmp_path, db_file_path);
+		cleanup_del_entries(allocated_ret, ret_rows, NULL, NULL);
 		return NULL;
 	}
-	return ret_rows;
+	return ret;
 }
 

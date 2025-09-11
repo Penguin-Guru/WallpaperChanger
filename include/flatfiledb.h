@@ -75,8 +75,8 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry);
 
 num_rows add_tag_by_tag(const file_path_t file_path, tags_t *criteria, tags_t *tags_mod);
 
-rows_t* del_entries(
-	rows_t *ret_rows,
+db_entries_operated_t* del_entries(
+	db_entries_operated_t *ret,
 	const file_path_t file_path,
 	const tags_t * const p_criteria,
 	const tags_t * const n_criteria,	// Optional-- set to NULL.

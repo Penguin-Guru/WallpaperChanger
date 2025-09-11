@@ -38,11 +38,16 @@ inline void free_rows_contents(rows_t *target) {
 	for (num_rows i = 0; i < target->ct; i++) {
 		free_row(target->row[i]);
 	}
-	if (target->row) free(target->row);	// Should always be true.
+	free(target->row);
+	target->ct = 0;
 	// Not attempting to free target.
 }
 void free_rows(rows_t *target) {
 	free_rows_contents(target);
+	free(target);
+}
+inline void free_entries_operated(db_entries_operated_t *target) {
+	free_rows_contents(&target->rows);
 	free(target);
 }
 

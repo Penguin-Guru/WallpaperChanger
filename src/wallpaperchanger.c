@@ -838,11 +838,11 @@ bool handle_delete_current(const arg_list_t * const al) {
 	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
 	// Preceeding entries marking the same file as a favourite do not prevent deletion.
 	// 	This should not matter, since the favourite tag should be inherited when those entries are referenced.
-	rows_t rows = {.ct = 0};
-	if (!del_entries(&rows, data_file_path, &p_criteria, &n_criteria, target_monitor_name)) {
+	db_entries_operated_t res = {.rows.ct = 0};
+	if (!del_entries(&res, data_file_path, &p_criteria, &n_criteria, target_monitor_name)) {
 		return false;
 	}
-	if (rows.ct <= 0) {
+	if (res.rows.ct <= 0) {
 		if (verbosity) {
 			fprintf(stderr, "Nothing was deleted.\n");
 			if (verbosity >= 2) {
@@ -852,12 +852,18 @@ bool handle_delete_current(const arg_list_t * const al) {
 		}
 		return false;
 	}
-	printf("Entries deleted from database: %lu\nDeleting files...\n", rows.ct);
-	for (num_rows i = 0; i < rows.ct; i++) {	// Delete the files.
+	printf(
+		"Entries deleted from database: %lu\n"
+		"Deleting %lu %s...\n"
+		, res.ct
+		, res.rows.ct
+		, (res.rows.ct == 1 ? "file" : "files")
+	);
+	for (num_rows i = 0; i < res.rows.ct; i++) {	// Delete the files.
 		// Note: non-existant files are silently ignored.
-		if (unlink(rows.row[i]->file) == -1) fprintf(stderr, "Failed to delete file: \"%s\"\n", rows.row[i]->file);
+		if (unlink(res.rows.row[i]->file) == -1) fprintf(stderr, "\tFailed to delete file: \"%s\"\n", res.rows.row[i]->file);
 	}
-	free_rows_contents(&rows);
+	free_rows_contents(&res.rows);
 
 	if (verbosity) printf("Changing the current wallpaper...\n");
 	handle_set(NULL);

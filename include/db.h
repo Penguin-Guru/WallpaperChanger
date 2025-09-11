@@ -52,10 +52,15 @@ typedef struct rows_t {
 	row_t** row;
 	num_rows ct;
 } rows_t;
+typedef struct db_entries_operated_t {
+	num_rows ct;	// Number of rows operated on.
+	rows_t rows;	// Used for returning data to calling function.
+} db_entries_operated_t;
 
 void free_row(row_t *r);
 void free_rows_contents(rows_t* target);	// Free stack allocations.
 void free_rows(rows_t* target);			// Free heap allocations.
+void free_entries_operated(db_entries_operated_t* target);
 
 
 bool format_path(file_path_t path);
