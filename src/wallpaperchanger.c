@@ -391,13 +391,16 @@ short populate_wallpaper_cache() {
 
 		cache->tags = row->tags;
 	}
-	if (!(
+	assert(
 		   s_old_wallpaper_cache.ct +1 == rows->ct - skipped_ct	// Account for potential TAG_CURRENT.
 		|| s_old_wallpaper_cache.ct == rows->ct - skipped_ct
-	)) {
-		fprintf(stderr, "Unexpected size for old wallpaper cache. Risk of uninitialised memory.\n");
-		free_rows(rows);
-		return -1;
+	);
+	if (skipped_ct || s_current_wallpaper.path) {
+		if (!reallocarray(s_old_wallpaper_cache.wallpapers, s_old_wallpaper_cache.ct, sizeof(wallpaper_info))) {
+			fprintf(stderr, "Failed to resize old wallpaper cache.\n");
+			free_rows(rows);
+			return -1;
+		}
 	}
 	free_rows(rows);
 	return 0;
