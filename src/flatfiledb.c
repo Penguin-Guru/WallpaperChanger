@@ -671,29 +671,10 @@ db_entries_operated_t* del_entries(db_entries_operated_t *ret, const file_path_t
 		if (!(row = get_row_if_match(++row_num, string, NULL, n_criteria, monitor_name, ret_rows))) {
 			// Row does not match-- ignore it.
 			fputs(string, tmp);	// Write it to the temp file-- do not delete database entry.
-			free_row(row);
-			continue;		// Do not cache it for return to caller.
+			continue;
 		}
-		if (row->tags & *p_criteria) {
-			// Row should already have been cached in Stage 1.
-			// Not matched above because we do not want to write such rows to the temp file.
-			free_row(row);
-			continue;	// Should already be cached.
-		}
-
-		// Row matches query-- do not write it to the temp file.
-		// Instead, we will load it onto the heap for return to caller.
-		void *tmp;
-		if (!(tmp = reallocarray(ret_rows->row, ret_rows->ct+1, sizeof(row_t*)))) {
-			fprintf(stderr, "Failed to reallocate memory for row #%lu. Terminating prematurely.\n", row_num);
-			free(string);
-			fclose(f);
-			if (allocated_ret) free_rows(ret_rows);
-			else free_rows_contents(ret_rows);
-			return NULL;
-		}
-		if (tmp != ret_rows->row) ret_rows->row = (row_t**)tmp;
-		ret_rows->row[ret_rows->ct++] = row;
+		free_row(row);	// No need to cache/return multiple entries refering to the same files.
+		ret->ct++;	// Count these entries as operated upon.
 	}
 
 	free(string);
