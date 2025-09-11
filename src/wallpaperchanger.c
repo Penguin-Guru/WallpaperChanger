@@ -342,8 +342,20 @@ short populate_wallpaper_cache() {
 			     row->tags & encode_tag(TAG_HISTORIC)
 			&& !(row->tags & encode_tag(TAG_CURRENT))
 		) {
-			s_old_wallpaper_cache.ct--;
 			skipped_ct++;
+			s_old_wallpaper_cache.ct--;
+			continue;
+		}
+
+		const file_path_t fp = row->file;
+		// Comparing file names may be insufficiently unique.
+		// Path is only cached relative to wallpaper_path. This is to reduce memory usage.
+		const file_path_t start_of_relative_path = get_start_of_relative_path(fp);
+		if (!start_of_relative_path) {
+			fprintf(stderr, "Skipping file outside of wallpaper directory: \"%s\"\n", fp);
+			skipped_ct++;
+			s_old_wallpaper_cache.ct--;	// Eliminate some day.
+			//decrement_static_wallpapers();
 			continue;
 		}
 
@@ -356,28 +368,11 @@ short populate_wallpaper_cache() {
 			}
 			cache = &s_current_wallpaper;
 			s_old_wallpaper_cache.ct--;	// Eliminate some day.
+			// Not considered skipped. Not incrementing skipped_ct.
 		} else {
 			cache = &s_old_wallpaper_cache.wallpapers[s_old_wallpaper_cache.ct];
 		}
 
-		const file_path_t fp = row->file;
-		// Comparing file names may be insufficiently unique.
-		// We will compare path structures relative to wallpaper_path.
-		const file_path_t start_of_relative_path = get_start_of_relative_path(fp);
-		if (!start_of_relative_path) {
-			fprintf(stderr,
-				"File path is not in wallpaper directory. Have you migrated?\n"
-					"\tFile path: \"%s\"\n"
-					"\tWallpaper directory: \"%s\"\n"
-				,
-				fp,
-				"/" DEFAULT_WALLPAPER_DIR_NAME "/"
-			);
-			free_rows(rows);
-			return -1;	// Abort.
-			//decrement_static_wallpapers();
-			//continue;
-		}
 		const size_t len = strlen(start_of_relative_path);
 		if (!len) {
 			fprintf(stderr, "Invalid path length. Entry will not be cached.\n");
