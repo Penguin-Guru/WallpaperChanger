@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>	// Debugging.
 #include <inttypes.h>	// For fixed width integer format macros.
+#include <assert.h>
 #include "db.h"
 
 /*
@@ -34,8 +35,10 @@ inline void free_row(row_t *r) {
 	free(r);
 }
 inline void free_rows_contents(rows_t *target) {
-	if (target == NULL) return;
+	assert(target);
+	assert(target->row);
 	for (num_rows i = 0; i < target->ct; i++) {
+		assert(target->row[i]);
 		free_row(target->row[i]);
 	}
 	free(target->row);
