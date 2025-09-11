@@ -275,15 +275,18 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 	// Relative paths are used to preserve functionality in the event that a user moves their root wallpaper directory.
 	assert(full_path);
 	assert(full_path[0]);
-	char *start_of_relative_path = strstr(full_path, "/" DEFAULT_WALLPAPER_DIR_NAME "/");
-	if (!start_of_relative_path) {
-		fprintf(stderr,
-			"Failed to parse wallpaper directory (\"%s\") from path: \"%s\"\n",
-			"/" DEFAULT_WALLPAPER_DIR_NAME "/", full_path
-		);
-		return NULL;
-	}
-	start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
+
+	// Consolidate logic with is_path_within_path().
+	char *start_of_relative_path = strstr(full_path, get_wallpaper_path());
+	if (!start_of_relative_path) return NULL;
+
+	const size_t wpp_len = strlen(get_wallpaper_path());
+
+	// Relative path should start with a slash.
+	if (*(start_of_relative_path + wpp_len) != '/') return NULL;
+
+	//start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
+	start_of_relative_path += wpp_len;
 	if (start_of_relative_path - full_path < 0) return NULL;	// Quick bounds check.
 	return start_of_relative_path;
 }
