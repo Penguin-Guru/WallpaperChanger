@@ -327,19 +327,6 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 	if (start_of_relative_path - full_path < 0) return NULL;	// Quick bounds check.
 	return start_of_relative_path;
 }
-/*const char *get_start_of_file_name(const file_path_t full_path) {
-	// Note: This can not handle file names that include a '/' character!
-	const char *start_of_file_name = strrchr(full_path, '/');
-	if (!start_of_file_name) {
-		fprintf(stderr,
-			"Failed to parse file name from path: \"%s\"\n",
-			full_path
-		);
-		return nullptr;
-	}
-	if (*(++start_of_file_name) == '\0') return nullptr;
-	return start_of_file_name;
-}*/
 
 /*inline void decrement_static_wallpapers() {
 	void *tmp = realloc(s_wallpapers, sizeof(file_path_t)*(--s_wallpapers_ct));
@@ -831,12 +818,6 @@ bool handle_set_new(const arg_list_t * const al) {
 }
 
 bool handle_set_fav(const arg_list_t * const al) {
-	// Set an automatically selected favourite wallpaper.
-	// 	(TODO) Prefer not:
-	// 		A wallpaper set the present day.
-	// 		If all favourites have been set on the present day, cycle from last to current.
-	// 			If only the current wallpaper is a favourite, or there are no favourites, do nothing.
-	// 	Otherwise random.
 	tags_t p_criteria = encode_tag(TAG_FAVOURITE);
 	tags_t n_criteria = encode_tag(TAG_CURRENT);
 	n_criteria |= encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
@@ -865,23 +846,7 @@ bool handle_set_fav(const arg_list_t * const al) {
 	free_rows(favs);
 	return ret;
 }
-/*bool handle_set_prev(param_arg_ct argcnt, argument *arg) {
-	// Detect the previous wallpaper?
-	// For this to be useful...
-	// 	The database's "current" should not be modified.
-	// 	The database must use a cursor tag to track the initial "current".
-	// 	handle_set_next() should be relative to the cursor, not "current".
-	// 	Any other function that sets a wallpaper should either...
-	// 		Clear the cursor, such that invoking handle_set_prev again would set the previous "current".
-	// 		Set a timestamp, which could be used to timeout the cursor after some period (maybe an hour or day).
-	// Send it to set_new_current().
-	return true;
-}
-bool handle_set_next(param_arg_ct argcnt, argument *arg) {
-	// Detect the next wallpaper?
-	// Send it to set_new_current().
-	return true;
-}*/
+
 bool handle_restore_recent(const arg_list_t * const al) {
 	rows_t *currents = get_current(data_file_path, al ? al->args[0] : NULL);
 	if (currents == NULL) {
@@ -966,22 +931,6 @@ bool handle_delete_current(const arg_list_t * const al) {
 	return true;
 }
 
-/*bool handle_sanity_check(param_arg_ct argcnt, argument *arg) {
-	// Report and abort in case of pre-existing temp file.
-	// Create temp file.
-	// Copy sane entries to the temp file.
-	// Back up the working file.
-	// Replace working file with temp file.
-
-	// Sanity check for:
-	// 	Non-existant files.
-	// 	Integrity of existing files?
-	// get_current() checks for duplicate entries tagged as current.
-	// get_tag_mask() checks for duplicate tags on a single entry.
-	
-	did_something = true;
-	return sanity_check(data_file_path);
-}*/
 bool handle_print(const arg_list_t * const al) {
 	assert(al == NULL || al->args[0]);
 	if (verbosity == 0) return false;
