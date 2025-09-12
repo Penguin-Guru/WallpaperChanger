@@ -441,26 +441,74 @@ short check_mime_type(const file_path_t filepath) {
 	magic_close(magic);
 	return 1;	// Mime type matches ("image").
 }
-bool is_path_within_path(const file_path_t a, const file_path_t b) {
-	// Tests whether path A is path B or is contained within directory at path B.
+static inline bool is_path_within_path_helper(const file_path_t const a, const file_path_t const b) {
+	const size_t b_len = strlen(b);
+	if (strlen(a) < b_len) return false;	// Path can not exist within a longer path.
+	// ... A is longer than B.
 
-	// Files are always within the path of their parent directory.
-	size_t len = strlen(a);
-	char buff_a[len];
-	memcpy(buff_a, a, len+1);	// +1 for terminating null.
-	const char *needle = dirname(buff_a);
-	if (needle[1] == '\0' && needle[0] == '/') {
-		len = strlen(b);
-		char buff_b[len];
-		memcpy(buff_b, b, len+1);	// +1 for terminating null.
-		const char *haystack = dirname(buff_b);
-		if (!(haystack[1] == '\0' && haystack[0] == '/')) return false;
+	const char * const start_of_subpath = strstr(a, b);
+	if (!(start_of_subpath && start_of_subpath - a == 0)) return false;	// B does not exist at beginning of A.
+	// ... B exists at the beginning of A.
+
+	// Check whether B was specified with a trailing slash.
+	const char *checker = *(b + b_len - 1) == '/' ? a + b_len - 1 : a + b_len;
+	switch (*checker) {
+		case  '/' :	// There is a slash separating B from the rest of A.
+		case '\0' :	// There is no need for a slash, because A ends immediately after B.
+			return true;
 	}
+	// ... There is no slash after the assumed directory prefix B that begins A.
+	return false;
+}
+bool is_path_within_path(const file_path_t const a, const file_path_t const b) {
+	// Tests whether path A is (either):
+	// 	     The same as path B.
+	// 	(OR) Contained within B, assuming...
+	// 		      A and B both exist.
+	// 		(AND) B is a directory.
+	// A does not need to end with a slash, but the corresponding substring within B must.
+	// Empty (not null) B is considered to also represent the (relative) root directory.
+	// 	This allows for truncation of a path prefix by positioning its pointer to its terminating null.
+	// Relative paths are only crudely supported.
+	// 	For this function to return true...
+	// 		      B must begin with a slash unless (either):
+	// 			     B is empty (interpreted as root).
+	// 			(OR) A and B are pointers to the same path address.
+	// 		(AND) A must begin with a slash unless (any):
+	// 			     B is root (or empty).
+	// 			(OR) A and B are pointers to the same path address.
+	// 			(OR) B does not begin with a slash.
+	// 	Periods, tildes, and such are interpreted literally.
 
-	char *start_of_subpath = strstr(b, needle);
-	if (!start_of_subpath) return false;
-	if (start_of_subpath - a > 0) return false;
-	return true;
+	assert(a);
+	assert(b);
+	// ... Neither A nor B should be null pointers.
+
+	if (a[0] == '\0') return false;		// A is empty.
+	// ... A is not empty.
+
+	if (
+		   a == b			//    Pointers to same path address.
+		|| b[0] == '\0'			// OR B is empty.
+	) return true;
+	// ... A and B do not point to the same path address.
+	// ... B is not empty.
+
+	if (b[0] != '/') {	// B is not an absolute path.
+		if (a[0] == '/') return false;	// A is an absolute path.
+		// ... Both A and B appear to be relative paths (not starting with '/').
+
+		return is_path_within_path_helper(a, b);
+	}
+	// ... B appears to be an absolute path (starts with '/').
+
+	if (b[1] == '\0') return true;	// B is (relative) root-- contains everything.
+	// ... B is not the (relative) root.
+
+	if (a[0] != '/') return false;	// A is not an absolute path.
+	// ... A appears to be an absolute path (starts with '/').
+
+	return is_path_within_path_helper(a, b);
 }
 #define MAX_INODE_TESTS 2
 typedef struct test_set {
