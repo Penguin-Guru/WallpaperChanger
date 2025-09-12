@@ -1061,31 +1061,17 @@ bool handle_database_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
 	if (!is_file_accessible(al->args[0], "RW")) return false;
-	const size_t len = strlen(al->args[0]);
-	if (!len) {
-		fprintf(stderr, "Database path length is 0.\n");
-		return false;
-	}
-	assert(al->args[0][len] == '\0');
-	data_file_path = (file_path_t)malloc(len+1);
-	memcpy(data_file_path, al->args[0], len);
-	data_file_path[len] = '\0';
+
+	data_file_path = al->args[0];
 	if (verbosity > 1) printf("Using database path: \"%s\"\n", data_file_path);
 	return true;
 }
 bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (!validate_directory(al->args[0], "wallpaper", false, false)) return false;
-	const size_t len = strlen(al->args[0]);
-	if (!len) {
-		fprintf(stderr, "Wallpaper path length is 0.\n");
-		return false;
-	}
-	assert(al->args[0][len] == '\0');
-	wallpaper_path = (file_path_t)malloc(len+1);
-	memcpy(wallpaper_path, al->args[0], len);
-	wallpaper_path[len] = '\0';
+
+	if (!(wallpaper_path = validate_directory(al->args[0], "wallpaper", false, false))) return false;
+
 	if (verbosity > 1) printf("Using specified wallpaper path: \"%s\"\n", wallpaper_path);
 	return true;
 }
