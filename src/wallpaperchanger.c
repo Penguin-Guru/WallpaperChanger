@@ -102,6 +102,8 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 				|| mode_flags[i] == 'r'
 				|| mode_flags[i] == 'W'
 				|| mode_flags[i] == 'w'
+				|| mode_flags[i] == 'X'
+				|| mode_flags[i] == 'x'
 			);
 			switch (mode_flags[i]) {
 				case 'R' :
@@ -111,6 +113,10 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 				case 'W' :
 				case 'w' :
 					mode |= W_OK;	// Check write permissions.
+					break;
+				case 'X' :
+				case 'x' :
+					mode |= X_OK;	// Check execute/search permissions.
 					break;
 				default :
 					fprintf(stderr, "Unknown mode flag supplied to is_file_accessible().\n");
@@ -175,39 +181,70 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 	fprintf(stderr, "\t%s\n", status_str);
 	return false;
 }
+static inline int is_directory(const file_path_t const path) {
+   struct stat statbuf;
+   if (stat(path, &statbuf) != 0) return 0;	// Not ideal.
+   return S_ISDIR(statbuf.st_mode);
+}
+static inline file_path_t validate_directory_failed(char *msg, file_path_t path, const char * const name, const bool do_reset, const bool do_free) {
+	assert(path);
+
+	assert(msg);
+	assert(name);
+	fprintf(stderr, "%s %s directory: \"%s\"\n", msg, name, path);
+
+	if (do_free) free(path);
+	if (do_reset) path = NULL;
+	return NULL;
+}
+static inline file_path_t validate_directory(file_path_t path, const char * const name, const bool do_reset, const bool do_free) {
+	assert(path);
+	assert(name);
+	if (!(path[0] && is_directory(path))) {
+		return validate_directory_failed("Invalid", path, name, do_reset, do_free);
+	}
+	if (!is_file_accessible(path, "X")) {
+		return validate_directory_failed("Denied permission to search", path, name, do_reset, do_free);
+	}
+	return path;
+}
 
 
+static file_path_t get_data_directory() {
+	if (data_directory) {
+		assert(*data_directory);
+		return data_directory;
+	}
+	// Initialise.
+	if (!(data_directory = get_xdg_data_home())) {
+		fprintf(stderr, "Failed to get X.D.G. data_directory.\n");
+		return NULL;
+	}
+	return validate_directory(data_directory, "data", true, false);
+}
 static file_path_t get_wallpaper_path() {
 	if (wallpaper_path) {
 		assert(wallpaper_path[0]);
 		return wallpaper_path;
 	}
 
-	// Initialise default.
-	if (!data_directory) {
-		if (!(data_directory = get_xdg_data_home())) {
-			fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
-			clean_up();
-			return NULL;
-		}
-	}
-	assert(data_directory[0]);
-	const size_t len = strlen(data_directory);
+	file_path_t dd;
+	if (!(dd = get_data_directory())) return NULL;
+	size_t len;
+	if ((len = strlen(dd)) == 0) return NULL;
+
 	assert(DEFAULT_WALLPAPER_DIR_NAME[sizeof(DEFAULT_WALLPAPER_DIR_NAME)-1] == '\0');
 	wallpaper_path = (file_path_t)malloc(len+1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
-	memcpy(wallpaper_path, data_directory, len);
-	/*assert(data_directory[len-1] == '/');	// -1 to offset array's zero indexing.
-	memcpy(wallpaper_path+len, DEFAULT_WALLPAPER_DIR_NAME, sizeof(DEFAULT_WALLPAPER_DIR_NAME));*/
+	memcpy(wallpaper_path, dd, len);
 	// Add slash only if not already present.
-	if (data_directory[len-1] == '/') {	// -1 to offset array's zero indexing.
+	if (dd[len-1] == '/') {	// -1 to offset array's zero indexing.
 		memcpy(wallpaper_path+len, DEFAULT_WALLPAPER_DIR_NAME, sizeof(DEFAULT_WALLPAPER_DIR_NAME));
 	} else {
 		fprintf(stderr, "Data directory string does not end with a slash. This is unexpected.\n");
 		memcpy(wallpaper_path+len, "/" DEFAULT_WALLPAPER_DIR_NAME, 1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
 	}
 
-	assert(wallpaper_path && wallpaper_path[0]);
-	return wallpaper_path;
+	return validate_directory(wallpaper_path, "wallpaper", true, true);
 }
 
 
@@ -1039,7 +1076,7 @@ bool handle_database_path(const arg_list_t * const al) {
 bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->ct == 1);
 	assert(al->args[0]);
-	if (!is_file_accessible(al->args[0], "R")) return false;
+	if (!validate_directory(al->args[0], "wallpaper", false, false)) return false;
 	const size_t len = strlen(al->args[0]);
 	if (!len) {
 		fprintf(stderr, "Wallpaper path length is 0.\n");
@@ -1119,18 +1156,15 @@ static inline bool load_application_component(const enum AppComponent component)
 			break;
 		case COMPONENT_DB :
 			if (!data_file_path) {	// Fall back on default database path.
-				if (!data_directory) data_directory = get_xdg_data_home();	// Currently always true.
-				//size_t len = data_directory ? strlen(data_directory) : 0;
+				file_path_t dd;
+				if (!(dd = get_data_directory())) return false;
 				size_t len;
-				if (!data_directory || (len = strlen(data_directory)) == 0) {
-					fprintf(stderr, "Failed to get X.D.G. data_directory. Aborting.\n");
-					return false;
-				}
+				if ((len = strlen(dd)) == 0) return false;
+
 				// Should probably check to confirm that adding to len won't exceed max.
 				len += 1+sizeof(DEFAULT_DATA_FILE_NAME);	// +1 for '/'.
 				data_file_path = (file_path_t)malloc(len);
-				snprintf(data_file_path, len, "%s%s", data_directory, "/" DEFAULT_DATA_FILE_NAME);
-				// data_directory is cached in case it's useful later.
+				snprintf(data_file_path, len, "%s%s", dd, "/" DEFAULT_DATA_FILE_NAME);
 			}
 			break;
 		default:
