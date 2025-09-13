@@ -328,31 +328,16 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 	return start_of_relative_path;
 }
 
-/*inline void decrement_static_wallpapers() {
-	void *tmp = realloc(s_wallpapers, sizeof(file_path_t)*(--s_wallpapers_ct));
-	if (tmp) {
-		s_wallpapers = (file_path_t*)tmp;
-	} else {
-		fprintf(stderr, "Failed to reallocate memory.\n");
-	}
-}*/
 static inline void populate_wallpaper_cache_entry_skipper(num_rows * const skipped_ct) {
 	// Memory will be resized later, with a single call.
 	(*skipped_ct)++;
 	s_old_wallpaper_cache.ct--;	// Eliminate some day.
 }
 short populate_wallpaper_cache() {
-	if (s_old_wallpaper_cache.ct || s_old_wallpaper_cache.wallpapers) {
-		fprintf(stderr,
-			"Attempted to re-populate previously initialised cache of old wallpapers. This should not happen.\n"
-				"\tCache count: %zu\n"
-				"\tPointer initialised: %s\n"
-			, s_old_wallpaper_cache.ct
-			, (s_old_wallpaper_cache.wallpapers ? "yes" : "no")
-		);
-		return -1;	// Abort.
-	}
-	num_rows skipped_ct = 0;	// Used for sanity check.
+	assert(!s_old_wallpaper_cache.ct);
+	assert(!s_old_wallpaper_cache.wallpapers);
+
+	num_rows skipped_ct = 0;	// Used for sanity check and realloc.
 	rows_t *rows = get_rows_by_tag(data_file_path, NULL, NULL, NULL);
 	if (!rows || rows->ct <= 0) {
 		if (rows) free_rows(rows);
@@ -409,8 +394,7 @@ short populate_wallpaper_cache() {
 			free_rows(rows);
 			return -1;	// Abort.
 		}
-		assert(start_of_relative_path[len] == '\0');
-		memcpy(cache->path, start_of_relative_path, len+1);
+		memcpy(cache->path, start_of_relative_path, len+1);	// +1 for terminating null.
 
 		cache->tags = row->tags;
 	}
@@ -419,7 +403,7 @@ short populate_wallpaper_cache() {
 		if (!reallocarray(s_old_wallpaper_cache.wallpapers, s_old_wallpaper_cache.ct, sizeof(wallpaper_info))) {
 			fprintf(stderr, "Failed to resize old wallpaper cache.\n");
 			free_rows(rows);
-			return -1;
+			return -1;	// Abort.
 		}
 	}
 	free_rows(rows);
