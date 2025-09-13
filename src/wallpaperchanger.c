@@ -51,13 +51,13 @@ void clean_up() {
 	if (wallpaper_path) free(wallpaper_path);	// Depends on run mode.
 }
 
-bool is_text_true(const char  * const string) {
+bool is_text_true(const char * const string) {
 	static const char * const Keywords[] = {
 		"true",
 		"yes"
 	};
 	static const uint_fast8_t Keywords_ct = sizeof(Keywords) / sizeof(Keywords[0]);
-	//for (const char * const * it = keywords[0]; 
+	//for (const char * const * it = keywords[0];
 	for (uint_fast8_t i = 0; i < Keywords_ct; i++) {
 		if (!strcasecmp(string, Keywords[i])) return true;
 	}
@@ -468,20 +468,20 @@ bool is_path_within_path(const file_path_t const a, const file_path_t const b) {
 	// Tests whether path A is (either):
 	// 	     The same as path B.
 	// 	(OR) Contained within B, assuming...
-	// 		      A and B both exist.
-	// 		(AND) B is a directory.
+	// 	 	      A and B both exist.
+	// 	 	(AND) B is a directory.
 	// A does not need to end with a slash, but the corresponding substring within B must.
 	// Empty (not null) B is considered to also represent the (relative) root directory.
 	// 	This allows for truncation of a path prefix by positioning its pointer to its terminating null.
 	// Relative paths are only crudely supported.
 	// 	For this function to return true...
-	// 		      B must begin with a slash unless (either):
-	// 			     B is empty (interpreted as root).
-	// 			(OR) A and B are pointers to the same path address.
-	// 		(AND) A must begin with a slash unless (any):
-	// 			     B is root (or empty).
-	// 			(OR) A and B are pointers to the same path address.
-	// 			(OR) B does not begin with a slash.
+	// 	 	      B must begin with a slash unless (either):
+	// 	 		     B is empty (interpreted as root).
+	// 	 		(OR) A and B are pointers to the same path address.
+	// 	 	(AND) A must begin with a slash unless (any):
+	// 	 		     B is root (or empty).
+	// 	 		(OR) A and B are pointers to the same path address.
+	// 	 		(OR) B does not begin with a slash.
 	// 	Periods, tildes, and such are interpreted literally.
 
 	assert(a);

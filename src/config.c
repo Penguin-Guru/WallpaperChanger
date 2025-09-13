@@ -213,7 +213,7 @@ bool parse_config_file(const file_path_t const file_path, const bool is_default_
 		fclose(f);
 		return false;
 	}
-	
+
 	if (verbosity > 1) printf("Loading config file: \"%s\"\n", file_path);
 
 	char *line = NULL;
