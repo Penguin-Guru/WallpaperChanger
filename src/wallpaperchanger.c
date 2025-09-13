@@ -336,6 +336,11 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 		fprintf(stderr, "Failed to reallocate memory.\n");
 	}
 }*/
+static inline void populate_wallpaper_cache_entry_skipper(num_rows * const skipped_ct) {
+	// Memory will be resized later, with a single call.
+	(*skipped_ct)++;
+	s_old_wallpaper_cache.ct--;	// Eliminate some day.
+}
 short populate_wallpaper_cache() {
 	if (s_old_wallpaper_cache.ct || s_old_wallpaper_cache.wallpapers) {
 		fprintf(stderr,
@@ -355,7 +360,7 @@ short populate_wallpaper_cache() {
 	}
 	// Allocating memory for all rows is inefficient. Fix later.
 	s_old_wallpaper_cache.wallpapers = (wallpaper_info*)malloc(sizeof(wallpaper_info)*rows->ct);
-	for (unsigned int i = 0; i < rows->ct; i++, s_old_wallpaper_cache.ct++) {
+	for (unsigned int i = 0; i < rows->ct; i++) {
 		const row_t *row = rows->row[i];
 
 		// TAG_HISTORIC wallpapers are not cached, so as to prevent bias toward more frequently set wallpapers.
@@ -367,7 +372,6 @@ short populate_wallpaper_cache() {
 			&& !(row->tags & encode_tag(TAG_CURRENT))
 		) {
 			skipped_ct++;
-			s_old_wallpaper_cache.ct--;
 			continue;
 		}
 
@@ -378,8 +382,6 @@ short populate_wallpaper_cache() {
 		if (!start_of_relative_path) {
 			fprintf(stderr, "Skipping file outside of wallpaper directory: \"%s\"\n", fp);
 			skipped_ct++;
-			s_old_wallpaper_cache.ct--;	// Eliminate some day.
-			//decrement_static_wallpapers();
 			continue;
 		}
 
@@ -391,18 +393,15 @@ short populate_wallpaper_cache() {
 				free(s_current_wallpaper.path);
 			}
 			cache = &s_current_wallpaper;
-			s_old_wallpaper_cache.ct--;	// Eliminate some day.
-			// Not considered skipped. Not incrementing skipped_ct.
+			skipped_ct++;
 		} else {
-			cache = &s_old_wallpaper_cache.wallpapers[s_old_wallpaper_cache.ct];
+			cache = &s_old_wallpaper_cache.wallpapers[s_old_wallpaper_cache.ct++];
 		}
 
 		const size_t len = strlen(start_of_relative_path);
 		if (!len) {
 			fprintf(stderr, "Invalid path length. Entry will not be cached.\n");
-			skipped_ct++;
-			s_old_wallpaper_cache.ct--;	// Eliminate some day.
-			//decrement_static_wallpapers();
+			populate_wallpaper_cache_entry_skipper(&skipped_ct);
 			continue;
 		}
 		if (! (cache->path = (file_path_t)malloc(len+1))) {	// +1 for terminating null.
@@ -415,11 +414,8 @@ short populate_wallpaper_cache() {
 
 		cache->tags = row->tags;
 	}
-	assert(
-		   s_old_wallpaper_cache.ct +1 == rows->ct - skipped_ct	// Account for potential TAG_CURRENT.
-		|| s_old_wallpaper_cache.ct == rows->ct - skipped_ct
-	);
-	if (skipped_ct || s_current_wallpaper.path) {
+	assert(s_old_wallpaper_cache.ct == rows->ct - skipped_ct);
+	if (skipped_ct) {
 		if (!reallocarray(s_old_wallpaper_cache.wallpapers, s_old_wallpaper_cache.ct, sizeof(wallpaper_info))) {
 			fprintf(stderr, "Failed to resize old wallpaper cache.\n");
 			free_rows(rows);
