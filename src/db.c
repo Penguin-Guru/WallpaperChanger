@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>	// Debugging.
-#include <inttypes.h>	// For fixed width integer format macros.
+#include <stdio.h>      // Debugging.
+#include <inttypes.h>   // For fixed width integer format macros.
 #include <assert.h>
 #include "db.h"
 
@@ -17,10 +17,10 @@
  *
  * 	size_t len = strftime(buffer, 26, TimestampFormat, tm_info);
  * 	char
- * 		*c = buffer+len-1,	// I thought strftime's return didn't include the null. Not sure why the -1 is needed.
+ * 		*c = buffer+len-1,      // I thought strftime's return didn't include the null. Not sure why the -1 is needed.
  * 		*cc = c-1
  * 	;
- * 	if ( (*c | *cc) == '0') {	// Remove trailing zeroes (in timezone offset) if exactly two (for minutes).
+ * 	if ( (*c | *cc) == '0') {       // Remove trailing zeroes (in timezone offset) if exactly two (for minutes).
  * 		*cc = *c = '\0';
  * 	}
  * 	printf("%s\n", buffer);

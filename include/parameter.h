@@ -45,11 +45,11 @@ typedef struct {
 		// Description is used exclusively for printing help text.
 		// Storing it here improves readability for pairing of hard-coded values with flag_pair_t.
 	const param_handler_t fn;
-	arg_list_t *arg_list;	// Heap.
+	arg_list_t *arg_list;   // Heap.
 } handler_set_t;
 
 typedef char* const flag_t;
-typedef flag_t long_flag_t;	// Support multi-character short flags (for now).
+typedef flag_t long_flag_t;     // Support multi-character short flags (for now).
 typedef flag_t short_flag_t;
 typedef struct {
 	const long_flag_t long_flag;
@@ -64,12 +64,12 @@ enum ParamType {
 	RUN
 };
 
-enum AppComponent {	// Bitmask of known components that may be loaded as needed.
+enum AppComponent {     // Bitmask of known components that may be loaded as needed.
 	// Numerics must correspond with value of next highest binary digit, to avoid conflation.
 	// Remember to update APP_COMPONENT_CT (below).
-	COMPONENT_NONE	= 0b00000000,	// 0
-	COMPONENT_X11	= 0b00000001,	// 1
-	COMPONENT_DB	= 0b00000010	// 2
+	COMPONENT_NONE  = 0b00000000,   // 0
+	COMPONENT_X11   = 0b00000001,   // 1
+	COMPONENT_DB    = 0b00000010    // 2
 	// 4
 	// 8
 	// 16
@@ -77,9 +77,9 @@ enum AppComponent {	// Bitmask of known components that may be loaded as needed.
 	// 64
 	// 128
 };
-#define APP_COMPONENT_CT 3	// Must match number of entries in AppComponent (above).
-typedef uint_fast8_t app_components_t;	// Bitmask.
-static_assert(	// Bitmask must offer one bit for each known component.
+#define APP_COMPONENT_CT 3      // Must match number of entries in AppComponent (above).
+typedef uint_fast8_t app_components_t;  // Bitmask.
+static_assert(  // Bitmask must offer one bit for each known component.
 	APP_COMPONENT_CT <= 8*sizeof(app_components_t),
 	"Data type of app_components_t is not big enough."
 );
@@ -92,7 +92,7 @@ enum LoadSource {
 
 typedef struct {
 	const param_arg_ct min, max;
-} param_arg_parameters_t;	// Name is odd. Consider alternatives.
+} param_arg_parameters_t;       // Name is odd. Consider alternatives.
 
 typedef struct {
 	handler_set_t handler_set;
@@ -101,11 +101,11 @@ typedef struct {
 	enum ParamType type;
 	const app_components_t requirements;
 	enum LoadSource previous_load;
-} parameter_t;	// Parameter definition. param_def_t
+} parameter_t;  // Parameter definition. param_def_t
 
-typedef uint_fast8_t param_ct;	// Limits the number of parameters the application may accept.
+typedef uint_fast8_t param_ct;  // Limits the number of parameters the application may accept.
 typedef struct {
-	handler_set_t **hs;	// Heap.
+	handler_set_t **hs;     // Heap.
 	// Is that double pointer necessary?
 	param_ct ct;
 } handler_set_list_t;

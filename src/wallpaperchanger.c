@@ -1,26 +1,26 @@
-#define _GNU_SOURCE	// For strchrnul.
+#define _GNU_SOURCE     // For strchrnul.
 
 #ifdef __has_include
 #	if ! __has_include(<ftw.h>)
 #		error "System does not appear to have a necessary library: \"<ftw.h>\""
-#	endif	// <ftw.h>
+#	endif   // <ftw.h>
 #	if ! __has_include(<magic.h>)
 #		error "System does not appear to have a necessary library: \"<magic.h>\""
-#	endif	// <magic.h>
+#	endif   // <magic.h>
 #	if ! __has_include(<unistd.h>)
 #		error "System does not appear to have a necessary library: \"<unistd.h>\""
-#	endif	// <unistd.h>
-#endif	// __has_include
+#	endif   // <unistd.h>
+#endif  // __has_include
 
 #include <string.h>
-#include <ftw.h>	// Used for finding new wallpapers.
-#include <magic.h>	// Used for detecting MIME content types.
-#include <unistd.h>	// Used for reading symlinks.
-#include <libgen.h>	// Used for dirname.
+#include <ftw.h>        // Used for finding new wallpapers.
+#include <magic.h>      // Used for detecting MIME content types.
+#include <unistd.h>     // Used for reading symlinks.
+#include <libgen.h>     // Used for dirname.
 #include <time.h>
 #include <errno.h>
-#include <stdlib.h>	// For free.
-#include <stdio.h>	// For (f)printf.
+#include <stdlib.h>     // For free.
+#include <stdio.h>      // For (f)printf.
 #include "wallpaperchanger.h"
 #include "init.h"
 #include "image.h"
@@ -33,7 +33,7 @@ extern app_components_t app_components;
 /* Utility functions: */
 
 void clean_up() {
-	if (s_old_wallpaper_cache.ct) {	// Depends on run mode.
+	if (s_old_wallpaper_cache.ct) { // Depends on run mode.
 		for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
 			free(s_old_wallpaper_cache.wallpapers[i].path);
 		}
@@ -46,9 +46,9 @@ void clean_up() {
 			free(s_monitors.monitor + i);
 		}
 	} else assert(!s_monitors.monitor);
-	if (data_file_path) free(data_file_path);	// Should always be true.
-	if (data_directory) free(data_directory);	// Almost always true.
-	if (wallpaper_path) free(wallpaper_path);	// Depends on run mode.
+	if (data_file_path) free(data_file_path);       // Should always be true.
+	if (data_directory) free(data_directory);       // Almost always true.
+	if (wallpaper_path) free(wallpaper_path);       // Depends on run mode.
 }
 
 bool is_text_true(const char * const string) {
@@ -108,22 +108,22 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 			switch (mode_flags[i]) {
 				case 'R' :
 				case 'r' :
-					mode |= R_OK;	// Check read permissions.
+					mode |= R_OK;   // Check read permissions.
 					break;
 				case 'W' :
 				case 'w' :
-					mode |= W_OK;	// Check write permissions.
+					mode |= W_OK;   // Check write permissions.
 					break;
 				case 'X' :
 				case 'x' :
-					mode |= X_OK;	// Check execute/search permissions.
+					mode |= X_OK;   // Check execute/search permissions.
 					break;
 				default :
 					fprintf(stderr, "Unknown mode flag supplied to is_file_accessible().\n");
 					return false;
 			}
 		}
-	} else mode = F_OK;	// Check whether exists (not read/write permissions).
+	} else mode = F_OK;     // Check whether exists (not read/write permissions).
 
 	int status;
 	if ((status = access(file, mode)) == 0) return true;
@@ -183,7 +183,7 @@ static inline bool is_file_accessible(const file_path_t file, const char mode_fl
 }
 static inline int is_directory(const file_path_t const path) {
    struct stat statbuf;
-   if (stat(path, &statbuf) != 0) return 0;	// Not ideal.
+   if (stat(path, &statbuf) != 0) return 0;     // Not ideal.
    return S_ISDIR(statbuf.st_mode);
 }
 static inline file_path_t validate_directory_failed(char *msg, file_path_t path, const char * const name, const bool do_reset, const bool do_free) {
@@ -237,7 +237,7 @@ static file_path_t get_wallpaper_path() {
 	wallpaper_path = (file_path_t)malloc(len+1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
 	memcpy(wallpaper_path, dd, len);
 	// Add slash only if not already present.
-	if (dd[len-1] == '/') {	// -1 to offset array's zero indexing.
+	if (dd[len-1] == '/') { // -1 to offset array's zero indexing.
 		memcpy(wallpaper_path+len, DEFAULT_WALLPAPER_DIR_NAME, sizeof(DEFAULT_WALLPAPER_DIR_NAME));
 	} else {
 		fprintf(stderr, "Data directory string does not end with a slash. This is unexpected.\n");
@@ -299,7 +299,7 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 	}
 	new_entry.monitor_name = target_monitor->name;
 	new_entry.file = wallpaper_file_path;
-	new_entry.tags = tags | encode_tag(TAG_CURRENT);	// Make sure it's tagged as current.
+	new_entry.tags = tags | encode_tag(TAG_CURRENT);        // Make sure it's tagged as current.
 	assert(data_file_path);
 	if (!append_new_current(data_file_path, &new_entry)) {
 		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
@@ -324,24 +324,24 @@ const file_path_t get_start_of_relative_path(const file_path_t full_path) {
 
 	//start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
 	start_of_relative_path += wpp_len;
-	if (start_of_relative_path - full_path < 0) return NULL;	// Quick bounds check.
+	if (start_of_relative_path - full_path < 0) return NULL;        // Quick bounds check.
 	return start_of_relative_path;
 }
 
 static inline void populate_wallpaper_cache_entry_skipper(num_rows * const skipped_ct) {
 	// Memory will be resized later, with a single call.
 	(*skipped_ct)++;
-	s_old_wallpaper_cache.ct--;	// Eliminate some day.
+	s_old_wallpaper_cache.ct--;     // Eliminate some day.
 }
 short populate_wallpaper_cache() {
 	assert(!s_old_wallpaper_cache.ct);
 	assert(!s_old_wallpaper_cache.wallpapers);
 
-	num_rows skipped_ct = 0;	// Used for sanity check and realloc.
+	num_rows skipped_ct = 0;        // Used for sanity check and realloc.
 	rows_t *rows = get_rows_by_tag(data_file_path, NULL, NULL, NULL);
 	if (!rows || rows->ct <= 0) {
 		if (rows) free_rows(rows);
-		return 1;	// Seems new.
+		return 1;       // Seems new.
 	}
 	// Allocating memory for all rows is inefficient. Fix later.
 	s_old_wallpaper_cache.wallpapers = (wallpaper_info*)malloc(sizeof(wallpaper_info)*rows->ct);
@@ -389,12 +389,12 @@ short populate_wallpaper_cache() {
 			populate_wallpaper_cache_entry_skipper(&skipped_ct);
 			continue;
 		}
-		if (! (cache->path = (file_path_t)malloc(len+1))) {	// +1 for terminating null.
+		if (! (cache->path = (file_path_t)malloc(len+1))) {     // +1 for terminating null.
 			fprintf(stderr, "Failed to allocate memory. Aborting.\n");
 			free_rows(rows);
-			return -1;	// Abort.
+			return -1;      // Abort.
 		}
-		memcpy(cache->path, start_of_relative_path, len+1);	// +1 for terminating null.
+		memcpy(cache->path, start_of_relative_path, len+1);     // +1 for terminating null.
 
 		cache->tags = row->tags;
 	}
@@ -403,7 +403,7 @@ short populate_wallpaper_cache() {
 		if (!reallocarray(s_old_wallpaper_cache.wallpapers, s_old_wallpaper_cache.ct, sizeof(wallpaper_info))) {
 			fprintf(stderr, "Failed to resize old wallpaper cache.\n");
 			free_rows(rows);
-			return -1;	// Abort.
+			return -1;      // Abort.
 		}
 	}
 	free_rows(rows);
@@ -412,19 +412,19 @@ short populate_wallpaper_cache() {
 short wallpaper_is_new(const file_path_t wallpaper_file_path) {
 	if (wallpaper_file_path == NULL || *wallpaper_file_path == '\0') {
 		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
-		return -1;	// Abort.
+		return -1;      // Abort.
 	}
-	if (s_old_wallpaper_cache.ct == 0) {	// Populate the cache if not already done from previous call.
+	if (s_old_wallpaper_cache.ct == 0) {    // Populate the cache if not already done from previous call.
 		short ret;
 		if ((ret = populate_wallpaper_cache()) != 0) return ret;
 	}
 	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
-	if (!start_of_relative_path) return -1;	// Abort (without reporting error for each such file).
-	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;	// Not new (continue search).
+	if (!start_of_relative_path) return -1; // Abort (without reporting error for each such file).
+	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;    // Not new (continue search).
 	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
-		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;	// Not new (continue search).
+		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;        // Not new (continue search).
 	}
-	return 1;	// Seems new.
+	return 1;       // Seems new.
 }
 
 short check_mime_type(const file_path_t filepath) {
@@ -434,31 +434,31 @@ short check_mime_type(const file_path_t filepath) {
 	if (mime_type == NULL || *mime_type == '\0') {
 		fprintf(stderr, "Failed to detect mime type for file: \"%s\"\n", filepath);
 		magic_close(magic);
-		return 0;	// Continue search.
+		return 0;       // Continue search.
 	}
-	const char *end_of_type = strchrnul(mime_type, '/');	// Is '/' always the delimiter?
+	const char *end_of_type = strchrnul(mime_type, '/');    // Is '/' always the delimiter?
 	unsigned short primary_type_len = end_of_type - mime_type;
 	if (strncmp(mime_type, "image", primary_type_len)) {
 		magic_close(magic);
-		return 0;	// Continue search.
+		return 0;       // Continue search.
 	}
 	magic_close(magic);
-	return 1;	// Mime type matches ("image").
+	return 1;       // Mime type matches ("image").
 }
 static inline bool is_path_within_path_helper(const file_path_t const a, const file_path_t const b) {
 	const size_t b_len = strlen(b);
-	if (strlen(a) < b_len) return false;	// Path can not exist within a longer path.
+	if (strlen(a) < b_len) return false;    // Path can not exist within a longer path.
 	// ... A is longer than B.
 
 	const char * const start_of_subpath = strstr(a, b);
-	if (!(start_of_subpath && start_of_subpath - a == 0)) return false;	// B does not exist at beginning of A.
+	if (!(start_of_subpath && start_of_subpath - a == 0)) return false;     // B does not exist at beginning of A.
 	// ... B exists at the beginning of A.
 
 	// Check whether B was specified with a trailing slash.
 	const char *checker = *(b + b_len - 1) == '/' ? a + b_len - 1 : a + b_len;
 	switch (*checker) {
-		case  '/' :	// There is a slash separating B from the rest of A.
-		case '\0' :	// There is no need for a slash, because A ends immediately after B.
+		case  '/' :     // There is a slash separating B from the rest of A.
+		case '\0' :     // There is no need for a slash, because A ends immediately after B.
 			return true;
 	}
 	// ... There is no slash after the assumed directory prefix B that begins A.
@@ -488,28 +488,28 @@ bool is_path_within_path(const file_path_t const a, const file_path_t const b) {
 	assert(b);
 	// ... Neither A nor B should be null pointers.
 
-	if (a[0] == '\0') return false;		// A is empty.
+	if (a[0] == '\0') return false;         // A is empty.
 	// ... A is not empty.
 
 	if (
-		   a == b			//    Pointers to same path address.
-		|| b[0] == '\0'			// OR B is empty.
+		   a == b                       //    Pointers to same path address.
+		|| b[0] == '\0'                 // OR B is empty.
 	) return true;
 	// ... A and B do not point to the same path address.
 	// ... B is not empty.
 
-	if (b[0] != '/') {	// B is not an absolute path.
-		if (a[0] == '/') return false;	// A is an absolute path.
+	if (b[0] != '/') {      // B is not an absolute path.
+		if (a[0] == '/') return false;  // A is an absolute path.
 		// ... Both A and B appear to be relative paths (not starting with '/').
 
 		return is_path_within_path_helper(a, b);
 	}
 	// ... B appears to be an absolute path (starts with '/').
 
-	if (b[1] == '\0') return true;	// B is (relative) root-- contains everything.
+	if (b[1] == '\0') return true;  // B is (relative) root-- contains everything.
 	// ... B is not the (relative) root.
 
-	if (a[0] != '/') return false;	// A is not an absolute path.
+	if (a[0] != '/') return false;  // A is not an absolute path.
 	// ... A appears to be an absolute path (starts with '/').
 
 	return is_path_within_path_helper(a, b);
@@ -519,7 +519,7 @@ typedef struct test_set {
 	uint_fast8_t ct;
 	short ret;
 	// Array of functions to be executed sequentially. See run_test_set below.
-	short (*test[MAX_INODE_TESTS])(const file_path_t filepath);	// Hard-coded array length is not ideal.
+	short (*test[MAX_INODE_TESTS])(const file_path_t filepath);     // Hard-coded array length is not ideal.
 } test_set;
 void append_test_to_set(struct test_set *tests, short(*test)(const file_path_t filepath)) {
 	assert(tests->ct < MAX_INODE_TESTS);
@@ -541,7 +541,7 @@ short run_test_set(struct test_set *tests, const file_path_t filepath) {
 		if ((tests->ret = tests->test[i](filepath)) != 1) break;
 	return tests->ret;
 }
-struct test_set tests;	// Global struct for nftw functions. Eliminate later.
+struct test_set tests;  // Global struct for nftw functions. Eliminate later.
 int search_for_wallpaper(
 	const char *filepath,
 	const struct stat *info,
@@ -549,12 +549,12 @@ int search_for_wallpaper(
 	struct FTW *pathinfo
 ) {
 	assert(pathinfo->level >= 0);
-	if (info->st_size == 0) return 0;	// Continue search.
+	if (info->st_size == 0) return 0;       // Continue search.
 
 	switch (typeflag) {
 		case FTW_D:
 		case FTW_DP:
-			break;	// Continue search.
+			break;  // Continue search.
 		case FTW_F: {
 			short ret;
 			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
@@ -566,7 +566,7 @@ int search_for_wallpaper(
 			char target_buff[PATH_MAX];
 			if (!(target = realpath(filepath, target_buff))) {
 				fprintf(stderr, "Failed to parse realpath for symlink: \"%s\"\n", filepath);
-				return -1;	// Fail loudly.
+				return -1;      // Fail loudly.
 			}
 
 			int ret;
@@ -578,7 +578,7 @@ int search_for_wallpaper(
 					perror(NULL);
 					strerror(errno);
 				}
-				return -1;	// Fail loudly.
+				return -1;      // Fail loudly.
 			}
 			assert(ret == 0);
 			switch (statbuff.st_mode & S_IFMT) {
@@ -586,16 +586,16 @@ int search_for_wallpaper(
 					if (!is_path_within_path(target, wallpaper_path)) {
 							if (!follow_symlinks_beyond_specified_directory) {
 								if (verbosity) printf("Ignoring symlink to directory outside wallpaper directory: \"%s\"\n", filepath);
-								break;	// Continue search.
+								break;  // Continue search.
 							}
 							if (verbosity > 3) printf("Following symlink beyond wallpaper directory, as requested.\n");
 					}
 					if (s_directory_depth_remaining <= 0) {
 						fprintf(stderr, "Reached maximum directory depth. Skipping directory: \"%s\"\n", target);
-						break;	// Continue search.
+						break;  // Continue search.
 					}
 					ret = nftw(target, search_for_wallpaper, --s_directory_depth_remaining, FTW_PHYS);
-					s_directory_depth_remaining++;	// This is ugly.
+					s_directory_depth_remaining++;  // This is ugly.
 					assert(0 <= s_directory_depth_remaining <= MAX_DIRECTORY_DEPTH);
 					break;
 				}
@@ -607,7 +607,7 @@ int search_for_wallpaper(
 					break;
 				default:
 					fprintf(stderr, "Detected symlink to unsupported inode file type: \"%s\"\n", filepath);
-					break;	// Continue search.
+					break;  // Continue search.
 			}
 
 			free(target);
@@ -615,21 +615,21 @@ int search_for_wallpaper(
 		}
 		case FTW_SLN:
 			fprintf(stderr, "Dangling symlink: \"%s\"\n", filepath);
-			break;	// Continue search.
+			break;  // Continue search.
 		case FTW_DNR:
 			fprintf(stderr, "Unreadable directory: \"%s\"\n", filepath);
-			break;	// Continue search.
+			break;  // Continue search.
 		default:
 			fprintf(stderr, "Unknown type of thing: \"%s\"\n", filepath);
-			break;	// Continue search.
+			break;  // Continue search.
 	}
 
-	return 0;	// Continue search.
+	return 0;       // Continue search.
 }
 
 /* Parameter handlers: */
 
-bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren't necessary.
+bool handle_set(const arg_list_t * const al) {  // It would be nice if this weren't necessary.
 	assert(al == NULL || (al->ct == 1 && al->args[0]));
 	const file_path_t const target_path = al ? al->args[0] : get_wallpaper_path();
 
@@ -659,7 +659,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 			// Apply tags if file has been set before.
 			enum Tag tags = TAG_CURRENT;
 			const file_path_t sorp = get_start_of_relative_path(target_path);
-			assert(sorp && sorp[0]);	// Already confirmed that target_path is within wallpaper_path.
+			assert(sorp && sorp[0]);        // Already confirmed that target_path is within wallpaper_path.
 			if (s_old_wallpaper_cache.ct == 0) populate_wallpaper_cache();
 			for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
 				if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, sorp)) {
@@ -735,7 +735,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 				) {
 					const size_t upper_path_len = strlen(get_wallpaper_path());
 					const size_t lower_path_len = strlen(s_old_wallpaper_cache.wallpapers[i].path);
-					char buff[upper_path_len + lower_path_len + 1];	// +1 for terminating null.
+					char buff[upper_path_len + lower_path_len + 1]; // +1 for terminating null.
 					memcpy(buff, get_wallpaper_path(), upper_path_len);
 					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
 					buff[upper_path_len + lower_path_len] = '\0';
@@ -746,7 +746,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 			} while (i != start);
 
 			if (verbosity) printf("There do not seem to be any valid wallpapers in the specified directory.\n");
-			break;	// Fail.
+			break;  // Fail.
 		}
 		case S_IFLNK: {
 			// Pass through symlink.
@@ -767,7 +767,7 @@ bool handle_set(const arg_list_t * const al) {	// It would be nice if this weren
 		}
 		default:
 			fprintf(stderr, "Specified path refers to unsupported inode file type: \"%s\"\n", target_path);
-			break;	// Fail.
+			break;  // Fail.
 	}
 
 	return false;
@@ -800,7 +800,7 @@ bool handle_set_new(const arg_list_t * const al) {
 bool handle_set_fav(const arg_list_t * const al) {
 	tags_t p_criteria = encode_tag(TAG_FAVOURITE);
 	tags_t n_criteria = encode_tag(TAG_CURRENT);
-	n_criteria |= encode_tag(TAG_HISTORIC);	// Do not bias toward wallpapers set more often.
+	n_criteria |= encode_tag(TAG_HISTORIC); // Do not bias toward wallpapers set more often.
 	rows_t *favs = get_rows_by_tag(data_file_path, &p_criteria, &n_criteria, NULL);
 	// At least for now, the database entries are in descending chronological order.
 
@@ -876,7 +876,7 @@ bool handle_delete_current(const arg_list_t * const al) {
 	// The specified monitor name may not be connected to the system, so no validation is attempted.
 
 	tags_t p_criteria = encode_tag(TAG_CURRENT);
-	tags_t n_criteria = encode_tag(TAG_FAVOURITE);	// Do not delete current if it's a favourite.
+	tags_t n_criteria = encode_tag(TAG_FAVOURITE);  // Do not delete current if it's a favourite.
 	// Preceeding entries marking the same file as a favourite do not prevent deletion.
 	// 	This should not matter, since the favourite tag should be inherited when those entries are referenced.
 	db_entries_operated_t res = {.rows.ct = 0};
@@ -900,7 +900,7 @@ bool handle_delete_current(const arg_list_t * const al) {
 		, res.rows.ct
 		, (res.rows.ct == 1 ? "file" : "files")
 	);
-	for (num_rows i = 0; i < res.rows.ct; i++) {	// Delete the files.
+	for (num_rows i = 0; i < res.rows.ct; i++) {    // Delete the files.
 		// Note: non-existant files are silently ignored.
 		if (unlink(res.rows.row[i]->file) == -1) fprintf(stderr, "\tFailed to delete file: \"%s\"\n", res.rows.row[i]->file);
 	}
@@ -933,7 +933,7 @@ bool handle_print(const arg_list_t * const al) {
 			, LengthOfLongestAttribute, "File" , currents->row[i]->file
 		);
 
-		if (currents->row[i]->tags ^= encode_tag(TAG_CURRENT)) {	// Excluding "current", since it would be redundant.
+		if (currents->row[i]->tags ^= encode_tag(TAG_CURRENT)) {        // Excluding "current", since it would be redundant.
 			char tag_string[Max_Tag_String_Len];
 			gen_tag_string(tag_string, currents->row[i]->tags);
 			// (Implicitly all) "Tags" is a bit misleading but "other tags" looks terrible.
@@ -966,7 +966,7 @@ bool handle_list_monitors(const arg_list_t * const al) {
 	assert(s_monitors.ct > 0);
 	for (uint_fast16_t i = 0; i < s_monitors.ct; i++) {
 		printf(
-			"%-*s\n"	// I don't know of a format specifier for unsigned char*.
+			"%-*s\n"        // I don't know of a format specifier for unsigned char*.
 				"\t   Width: %*u\n"
 				"\t  Height: %*u\n"
 				"\tx_offset: %*u\n"
@@ -1034,7 +1034,7 @@ static inline bool load_application_component(const enum AppComponent component)
 		case COMPONENT_NONE :
 			break;
 		case COMPONENT_X11 :
-			atexit(graphics_clean_up);	// Close connection to display server on return.
+			atexit(graphics_clean_up);      // Close connection to display server on return.
 			s_monitors = get_monitor_info();
 			if (!s_monitors.ct) {
 				fprintf(stderr, "Failed to get_monitor_info.\n");
@@ -1070,14 +1070,14 @@ static inline bool load_application_component(const enum AppComponent component)
 
 			break;
 		case COMPONENT_DB :
-			if (!data_file_path) {	// Fall back on default database path.
+			if (!data_file_path) {  // Fall back on default database path.
 				file_path_t dd;
 				if (!(dd = get_data_directory())) return false;
 				size_t len;
 				if ((len = strlen(dd)) == 0) return false;
 
 				// Should probably check to confirm that adding to len won't exceed max.
-				len += 1+sizeof(DEFAULT_DATA_FILE_NAME);	// +1 for '/'.
+				len += 1+sizeof(DEFAULT_DATA_FILE_NAME);        // +1 for '/'.
 				data_file_path = (file_path_t)malloc(len);
 				snprintf(data_file_path, len, "%s%s", dd, "/" DEFAULT_DATA_FILE_NAME);
 			}
@@ -1092,9 +1092,9 @@ int main(int argc, char** argv) {
 
 
 	// Note: init functions do not currently have access to data_file_path.
-	if (! init(argc, argv)) return 2;	// Parse C.L.I. and config file(s).
+	if (! init(argc, argv)) return 2;       // Parse C.L.I. and config file(s).
 
-	if (run_mode_params.ct == 0) {	// Has the user specified something to do?
+	if (run_mode_params.ct == 0) {  // Has the user specified something to do?
 		fprintf(stderr, "No action specified.\n");
 		return 0;
 	}
@@ -1116,9 +1116,9 @@ int main(int argc, char** argv) {
 	s_old_wallpaper_cache.wallpapers = NULL;
 
 	bool status = true;
-	for (param_ct i = 0; i < run_mode_params.ct; i++) {	// Execute requested functions.
+	for (param_ct i = 0; i < run_mode_params.ct; i++) {     // Execute requested functions.
 		const handler_set_t *hs = run_mode_params.hs[i];
-		if (! (status = hs->fn(hs->arg_list))) break;	// Break on error (status=false).
+		if (! (status = hs->fn(hs->arg_list))) break;   // Break on error (status=false).
 	}
 
 	return status ? 0 : 1;

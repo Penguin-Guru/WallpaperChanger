@@ -1,7 +1,7 @@
 #include <string.h>
 #include <assert.h>
-#include <stdlib.h>	// For free.
-#include <stdio.h>	// For fprintf.
+#include <stdlib.h>     // For free.
+#include <stdio.h>      // For fprintf.
 #include "init.h"
 #include "cli.h"
 #include "config.h"
@@ -52,7 +52,7 @@ bool handle_print_help(const arg_list_t * const al) {
 			printf("\t\tShort flag: -%s\n", flags->short_flag);
 	}
 	printf("\n");
-	exit(0);	// EXIT_SUCCESS.
+	exit(0);        // EXIT_SUCCESS.
 }
 
 void free_params(handler_set_list_t *list) {
@@ -62,7 +62,7 @@ void free_params(handler_set_list_t *list) {
 	free(list->hs);
 }
 bool register_param(parameter_t *p, const arg_list_t * const al, const enum LoadSource load_source) {
-	assert(al == NULL || al->ct > 0);	// Don't pass around empty containers.
+	assert(al == NULL || al->ct > 0);       // Don't pass around empty containers.
 	assert(!(al == NULL && p->arg_params.min != 0));
 	assert(
 		al == NULL
@@ -70,7 +70,7 @@ bool register_param(parameter_t *p, const arg_list_t * const al, const enum Load
 	);
 
 	// Sort parameters into their respective categories:
-	handler_set_list_t *list = NULL;	// Not useful at the moment, but may be in the future.
+	handler_set_list_t *list = NULL;        // Not useful at the moment, but may be in the future.
 	switch (p->type) {
 		case RUN :
 			list = &run_mode_params;
@@ -81,10 +81,10 @@ bool register_param(parameter_t *p, const arg_list_t * const al, const enum Load
 			// Init type parameters can be handled immediately.
 			if (load_source == CONFIG_FILE && p->previous_load == CLI) {
 				if (verbosity) printf("C.L.I. parameter over-riding config setting: \"%s\"\n", p->handler_set.name);
-				return true;	// This is not a failure case.
+				return true;    // This is not a failure case.
 			}
 			if (! p->handler_set.fn(al)) {
-				if (verbosity >= 2) printf("Handling init type parameter: \"%s\"\n", p->handler_set.name);	// Improve failure message clarity.
+				if (verbosity >= 2) printf("Handling init type parameter: \"%s\"\n", p->handler_set.name);      // Improve failure message clarity.
 				// Caller invokes clean_up().
 				return false;
 			}
@@ -151,18 +151,18 @@ static inline const char* load_default_config_file() {
         */
 	parse_config_file(silly, true);
 
-	return NULL;	// Success condition: no error message.
+	return NULL;    // Success condition: no error message.
 }
 
 bool init(int argc, char** argv) {
 	atexit(clean_up_init);
 	const char *abort_msg = NULL;
 
-	if (!parse_params(argc, argv)) {	// Parsed first, so config file path can be overridden.
+	if (!parse_params(argc, argv)) {        // Parsed first, so config file path can be overridden.
 		abort_msg = "Failed to parse command-line parameters.";
 	}
 
-	if (!abort_msg && num_config_files_loaded == 0) {	// Currently always true.
+	if (!abort_msg && num_config_files_loaded == 0) {       // Currently always true.
 		// No need to pass pointer because all potential messages are literals.
 		abort_msg = load_default_config_file();
 	}

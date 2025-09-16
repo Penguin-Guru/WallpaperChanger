@@ -1,12 +1,12 @@
 #ifdef __has_include
 #	if ! __has_include(<FreeImage.h>)
 #		warning "System does not appear to have a necessary library: \"<FreeImage.h>\""
-#	endif	// <FreeImage.h>
-#endif	// __has_include
+#	endif   // <FreeImage.h>
+#endif  // __has_include
 
 
-#include <stdlib.h>	// For malloc and free.
-#include <stdio.h>	// For (f)printf.
+#include <stdlib.h>     // For malloc and free.
+#include <stdio.h>      // For (f)printf.
 #include <FreeImage.h>
 #include "image.h"
 #include "verbosity.h"
@@ -31,7 +31,7 @@ image_t* get_image_size(const char *wallpaper_file_path) {
 		return NULL;
 	}
 
-	FreeImage_Initialise(true);	// True will only load local plugins.
+	FreeImage_Initialise(true);     // True will only load local plugins.
 	FreeImage_SetOutputMessage(FreeImageErrorHandler);
 	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
@@ -58,7 +58,7 @@ image_t* get_pixel_data(
 ) {
 	// https://git.sr.ht/~exec64/imv/tree/master/item/src/backend_freeimage.c#L60
 	// https://git.sr.ht/~exec64/imv/tree/master/item/src/canvas.c#L269
-	FreeImage_Initialise(true);	// True will only load local plugins.
+	FreeImage_Initialise(true);     // True will only load local plugins.
 	FreeImage_SetOutputMessage(FreeImageErrorHandler);
 	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
@@ -120,8 +120,8 @@ image_t* get_pixel_data(
 	img_x = FreeImage_GetWidth(bitmap);
 	img_y = FreeImage_GetHeight(bitmap);
 	img_z = FreeImage_GetBPP(bitmap);
-	unsigned scan_width = FreeImage_GetPitch(bitmap);	// A.K.A. "stride".
-	unsigned bytes_per_row = FreeImage_GetLine(bitmap);	// Not sure if useful.
+	unsigned scan_width = FreeImage_GetPitch(bitmap);       // A.K.A. "stride".
+	unsigned bytes_per_row = FreeImage_GetLine(bitmap);     // Not sure if useful.
 	unsigned bytes_per_pixel = bytes_per_row / img_x;
 	if (verbosity >= 2) printf(
 		"Source file:\n"
@@ -164,7 +164,7 @@ image_t* get_pixel_data(
 		//visual->red_mask, visual->green_mask, visual->blue_mask,
 		//FreeImage_GetRedMask(bitmap), FreeImage_GetGreenMask(bitmap), FreeImage_GetBlueMask(bitmap),
 		FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK,
-		true	// Top-down. Set false to flip vertically.
+		true    // Top-down. Set false to flip vertically.
 	);
 	if (!bits) {
 		fprintf(stderr, "Failed to read image data.\n");

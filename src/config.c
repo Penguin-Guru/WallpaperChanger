@@ -1,22 +1,22 @@
 
-#define _GNU_SOURCE	// For strchrnul.
+#define _GNU_SOURCE     // For strchrnul.
 
 #ifdef __has_include
 #	if ! __has_include(<sys/stat.h>)
 #		error "System does not appear to have a necessary library: \"<sys/stat.h>\""
-#	endif	// <sys/stat.h>
-#endif	// __has_include
+#	endif   // <sys/stat.h>
+#endif  // __has_include
 
-#include <wordexp.h>	// For wordexp and wordfree.
+#include <wordexp.h>    // For wordexp and wordfree.
 #include <string.h>
-#include <stdlib.h>	// For free.
-#include <stdio.h>	// For fprintf.
+#include <stdlib.h>     // For free.
+#include <stdio.h>      // For fprintf.
 #include <assert.h>
 #include <stdint.h>
-#include <math.h>	// For powf.
+#include <math.h>       // For powf.
 #include <errno.h>
-#include <libgen.h>	// For dirname.
-#include <unistd.h>	// For access.
+#include <libgen.h>     // For dirname.
+#include <unistd.h>     // For access.
 #include "config.h"
 #include "init.h"
 #include "verbosity.h"
@@ -29,14 +29,14 @@
 #define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
 
 // This is sized to contain the max value for data type of "skip" in parse_config_line().
-// 255 = floorf(powf(2, sizeof(uint_fast8_t)*8))-1	// -1 to exclude 0 from count.
+// 255 = floorf(powf(2, sizeof(uint_fast8_t)*8))-1      // -1 to exclude 0 from count.
 #define MAX_CONFIG_COLUMN_LENGTH 255
 
 
 bool parse_config_line(const char * const line) {
 	char *op;
 	if ((op = strpbrk(line, KEY_VALUE_DELIMS))) {
-		uint_fast16_t len = op - line;	// Data type limits max row length.
+		uint_fast16_t len = op - line;  // Data type limits max row length.
 		char label[len];
 		memcpy(label, line, len);
 		label[len] = '\0';
@@ -160,11 +160,11 @@ char* strrcpbrk(const char * const start, const char *end, const char * const re
 	return NULL;
 }
 size_t clip_trailing_chars(char *start, char *end, const char *chars) {
-	assert(end > start);	// Hopefully catch overflows.
+	assert(end > start);    // Hopefully catch overflows.
 	if (*end != '\0') *end = '\0';
 	if ((end = strrcpbrk(start, end, chars))) {
 		assert(end >= start);
-		*end = '\0';	// Clip string at position.
+		*end = '\0';    // Clip string at position.
 		return end - start;
 	}
 	return 0;
@@ -178,7 +178,7 @@ bool parse_config_file(const file_path_t const file_path, const bool is_default_
 		const char *description = NULL;
 		if (is_default_config_path) {
 			switch (err) {
-				case ENOENT :	// Flows down.
+				case ENOENT :   // Flows down.
 				case EACCES :
 					// This case catches and accepts non-existance of the default config file.
 					// Such cases are still considered an error if a parent directory either...
@@ -219,10 +219,10 @@ bool parse_config_file(const file_path_t const file_path, const bool is_default_
 	char *line = NULL;
 	size_t size = 0;
 	while (getline(&line, &size, f) > 0) {
-		char *parse_start = line + strspn(line, WHITESPACE_CHARACTERS);		// Ignore conventional indentation.
-		char * const parse_end = strchrnul(parse_start, '#');			// Check for comment delimiter.
-		if (parse_end - parse_start == 0) continue;				// The whole line is a comment. Ignore it.
-		clip_trailing_chars(parse_start, parse_end, WHITESPACE_CHARACTERS);	// Trim trailing whitespace. (unnecessary)
+		char *parse_start = line + strspn(line, WHITESPACE_CHARACTERS);         // Ignore conventional indentation.
+		char * const parse_end = strchrnul(parse_start, '#');                   // Check for comment delimiter.
+		if (parse_end - parse_start == 0) continue;                             // The whole line is a comment. Ignore it.
+		clip_trailing_chars(parse_start, parse_end, WHITESPACE_CHARACTERS);     // Trim trailing whitespace. (unnecessary)
 		// Finished pre-processing. Proceed to main parsing of line.
 		if (!parse_config_line(parse_start)) {
 			fprintf(stderr,

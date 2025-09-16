@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <stdlib.h>	// For malloc.
+#include <stdlib.h>     // For malloc.
 #include <string.h>
 #include <assert.h>
 #include "cli.h"
@@ -38,13 +38,13 @@ static inline void print_arg_mismatch(param_name name, const param_arg_parameter
 parameter_t *param_buff = NULL;
 arg_list_t args_buff = {};
 
-static inline bool push_param_buff() {	// For parameters with arguments.
+static inline bool push_param_buff() {  // For parameters with arguments.
 	assert(param_buff);
 	bool ret = register_param(param_buff, &args_buff, CLI);
 	reset_args_buffer(&args_buff);
 	return ret;
 }
-static inline bool push_param_unbuff(parameter_t *param) {	// For parameters without arguments.
+static inline bool push_param_unbuff(parameter_t *param) {      // For parameters without arguments.
 	if (param == NULL) param = param_buff;
 	assert(param);
 	bool ret = register_param(param, NULL, CLI);
@@ -166,7 +166,7 @@ bool parse_params(int argc, char** argv) {
 		}
 		// We now know that the parameter is a flag-- it begins with (and is not only) a single hyphen.
 		push_param_if_terms_pending(terms_pending, param_buff);
-		if (argvi[1] == '-') {	// Long form flag ("--").
+		if (argvi[1] == '-') {  // Long form flag ("--").
 			// If parameter is only two hyphens, respect convention to stop processing parameters.
 			if (argvi[2] == '\0') return true;
 
@@ -176,7 +176,7 @@ bool parse_params(int argc, char** argv) {
 				free_args(&args_buff);
 				return false;
 			}
-		} else {	// Short-form flag ("-").
+		} else {        // Short-form flag ("-").
 			short_flag_t arg = argvi+1;
 			if (!match_short_param(arg)) {
 				free_args(&args_buff);

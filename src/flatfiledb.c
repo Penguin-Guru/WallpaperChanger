@@ -1,17 +1,17 @@
 #ifdef __has_include
 #	if ! __has_include(<unistd.h>)
 #		error "System does not appear to have a necessary library: \"<unistd.h>\""
-#	endif	// <unistd.h>
-#endif	// __has_include
+#	endif   // <unistd.h>
+#endif  // __has_include
 
 
 #include <string.h>
-#include <stdio.h>	// Debugging.
+#include <stdio.h>      // Debugging.
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <assert.h>
-#include <inttypes.h>	// For fixed width integer format macros.
+#include <inttypes.h>   // For fixed width integer format macros.
 #include "flatfiledb.h"
 
 
@@ -67,16 +67,16 @@ inline tags_t encode_tag(enum Tag tag) {
 void gen_tag_string(char *string, tags_t tags) {
 	unsigned short total_len = 0;
 	string[0] = '\0';
-	for (unsigned short i = 0; i < sizeof(tags_known)/sizeof(tags_known[0]); i++) {	// Will they all be populated?
+	for (unsigned short i = 0; i < sizeof(tags_known)/sizeof(tags_known[0]); i++) { // Will they all be populated?
 		if (tags & encode_tag(i)) {
 			if (string[0] == '\0') {
-				unsigned short len = strlen(tags_known[i].text);	// Not including terminating null.
+				unsigned short len = strlen(tags_known[i].text);        // Not including terminating null.
 				memcpy(string, tags_known[i].text, len);
 				total_len += len;
 			} else {
 				static_assert(sizeof(TAG_DELIM) == 1, "Expected single byte char.\n");
-				memcpy(string + total_len++, &TAG_DELIM, 1);	// Incrementing.
-				unsigned short len = strlen(tags_known[i].text);	// Not including terminating null.
+				memcpy(string + total_len++, &TAG_DELIM, 1);            // Incrementing.
+				unsigned short len = strlen(tags_known[i].text);        // Not including terminating null.
 				memcpy(string + total_len, tags_known[i].text, len);
 				total_len += len;
 			}
@@ -99,7 +99,7 @@ void gen_tag_string(char *string, tags_t tags) {
 			return;
 		}
 	}
-	string[total_len] = '\0';	// Terminate the string.
+	string[total_len] = '\0';       // Terminate the string.
 }
 
 static inline bool is_fp_in_fp_rows(const char match[MAX_COLUMN_LENGTH], const rows_t* within) {
@@ -123,7 +123,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string,
 	char writable_row_string[row_string_length + 1];
 	strcpy(writable_row_string, row_string);
 	char *buff = NULL, *saveptr;
-	char token[NUM_COLUMNS+1][MAX_COLUMN_LENGTH];	// +1 for overflow detection.
+	char token[NUM_COLUMNS+1][MAX_COLUMN_LENGTH];   // +1 for overflow detection.
 	token_length_t token_len = 0;
 	for (
 			buff = strtok_r(writable_row_string, COLUMN_DELIMS, &saveptr)
@@ -169,8 +169,8 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string,
 	// Use tags_t as bitmask to check tags.
 	tags_t tags = get_tag_mask(token[3]);
 	if (
-		(!p_criteria || (*p_criteria & tags))		// Positive match criteria.
-		&& (! (n_criteria && (*n_criteria & tags)) )	// Negative match criteria.
+		(!p_criteria || (*p_criteria & tags))           // Positive match criteria.
+		&& (! (n_criteria && (*n_criteria & tags)) )    // Negative match criteria.
 		&& (monitor_name == NULL || !strcasecmp(token[1], monitor_name))
 		&& (p_file_path_rows == NULL || is_fp_in_fp_rows(token[2], p_file_path_rows))
 	) {
@@ -191,7 +191,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string,
 		if (!(len = strlen(token[1]))) {
 			fprintf(stderr, "Monitor name field in database has zero length.\n");
 		} else {
-			row->monitor_name = (monitor_name_t)malloc(len+1);	// +1 for termination.
+			row->monitor_name = (monitor_name_t)malloc(len+1);      // +1 for termination.
 			strcpy(row->monitor_name, token[1]);
 		}
 
@@ -201,7 +201,7 @@ row_t* get_row_if_match(const num_rows row_num, const char *row_string,
 			// Load entries with empty file paths, but warn user.
 			fprintf(stderr, "Invalid length for file path in database entry!\n");
 		} else {
-			row->file = (file_path_t)malloc(len+1);	// +1 for terminating null?
+			row->file = (file_path_t)malloc(len+1); // +1 for terminating null?
 			strcpy(row->file, token[2]);
 		}
 
@@ -273,7 +273,7 @@ rows_t* get_current(const file_path_t file_path, const monitor_name_t monitor_na
 		fprintf(stderr, "No matching rows found.\n");
 		return NULL;
 	}
-	if (monitor_name == NULL && res->ct != 1) {	// There should only be one current entry.
+	if (monitor_name == NULL && res->ct != 1) {     // There should only be one current entry.
 		fprintf(stderr, "Unexpected number of rows matched.\n");
 		free_rows(res);
 		return NULL;
@@ -381,7 +381,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	gen_tag_string(tag_string, new_entry->tags);
 
 	if (created_new_file) {
-		if (fprintf(f, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
+		if (fprintf(f, "%s%c%s%c%s%c%s\n",      // No need for end-of-file?
 			new_entry->ts,
 			COLUMN_DELIM,
 			new_entry->monitor_name,
@@ -418,14 +418,14 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	while (getline(&string, &size, f) > 0) {
 		row_t *row;
 		if ( row = get_row_if_match(++row_num, string, &current_mask, NULL, NULL, NULL) ) {
-			char tag_string[Max_Tag_String_Len];	// Name takes precedence over previously defined.
+			char tag_string[Max_Tag_String_Len];    // Name takes precedence over previously defined.
 			//row->tags ^= current_mask;
 			//gen_tag_string(tag_string, row->tags & (~(1 << current_mask)));
 			int status;
 			if (row->tags == current_mask) {
 				// Current is this entry's only tag.
 				row->tags = '\0';
-				status = fprintf(tmp, "%s%c%s%c%s\n",	// No need for end-of-file?
+				status = fprintf(tmp, "%s%c%s%c%s\n",   // No need for end-of-file?
 					row->ts,
 					COLUMN_DELIM,
 					row->monitor_name,
@@ -435,7 +435,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 				);
 			} else {
 				gen_tag_string(tag_string, row->tags & (~current_mask));
-				status = fprintf(tmp, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
+				status = fprintf(tmp, "%s%c%s%c%s%c%s\n",       // No need for end-of-file?
 					row->ts,
 					COLUMN_DELIM,
 					row->monitor_name,
@@ -458,7 +458,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 		}
 	}
 	free(string);
-	if (fprintf(tmp, "%s%c%s%c%s%c%s\n",	// No need for end-of-file?
+	if (fprintf(tmp, "%s%c%s%c%s%c%s\n",    // No need for end-of-file?
 		new_entry->ts,
 		COLUMN_DELIM,
 		new_entry->monitor_name,
@@ -474,7 +474,7 @@ bool append_new_current(const file_path_t data_file_path, row_t *new_entry) {
 	}
 
 	fclose(f);
-	fclose(tmp);	// ?
+	fclose(tmp);    // ?
 	if (rename(tmp_path, data_file_path)) {
 		fprintf(stderr, "Failed to replace database with temp file.\n\t%s\n\t%s\n", tmp_path, data_file_path);
 		return false;
@@ -670,11 +670,11 @@ db_entries_operated_t* del_entries(db_entries_operated_t *ret, const file_path_t
 		row_t *row;
 		if (!(row = get_row_if_match(++row_num, string, NULL, n_criteria, monitor_name, ret_rows))) {
 			// Row does not match-- ignore it.
-			fputs(string, tmp);	// Write it to the temp file-- do not delete database entry.
+			fputs(string, tmp);     // Write it to the temp file-- do not delete database entry.
 			continue;
 		}
-		free_row(row);	// No need to cache/return multiple entries refering to the same files.
-		ret->ct++;	// Count these entries as operated upon.
+		free_row(row);  // No need to cache/return multiple entries refering to the same files.
+		ret->ct++;      // Count these entries as operated upon.
 	}
 
 	free(string);

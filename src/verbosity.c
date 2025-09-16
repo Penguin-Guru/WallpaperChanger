@@ -1,7 +1,7 @@
 #include <string.h>
 #include <assert.h>
-#include <stdlib.h>	// For strtoul.
-#include <stdio.h>	// For printf.
+#include <stdlib.h>     // For strtoul.
+#include <stdio.h>      // For printf.
 #include "verbosity.h"
 
 uint_fast8_t verbosity = 1;

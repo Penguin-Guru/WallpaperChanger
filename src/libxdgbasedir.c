@@ -22,14 +22,14 @@ static char* get_env(const char *name, char *default_value) {
 	char *value = getenv(name);
 	if (value) {
 		const size_t len = strlen(value);
-		char *ret = (char*)malloc(len+1);	// +1 for terminating null.
+		char *ret = (char*)malloc(len+1);       // +1 for terminating null.
 		memcpy(ret, value, len);
 		ret[len] = '\0';
 		return ret;
 	}
 	if (default_value) {
 		const size_t len = strlen(default_value);
-		char *ret = (char*)malloc(len+1);	// +1 for terminating null.
+		char *ret = (char*)malloc(len+1);       // +1 for terminating null.
 		memcpy(ret, value, len);
 		ret[len] = '\0';
 		return ret;
@@ -44,7 +44,7 @@ char* get_xdg_config_home() {
 		char *home = get_env(HOME, NULL);
 		if (!home) {
 			free(path);
-			path = NULL;	// Not sure if useful.
+			path = NULL;    // Not sure if useful.
 		}
 		const size_t home_len = strlen(home);
 
@@ -53,7 +53,7 @@ char* get_xdg_config_home() {
 			// -1 offset for array's zero indexing.
 
 		const size_t total_len = home_len + sizeof(XDG_CONFIG_HOME_SUFFIX);
-		path = (char*)realloc(path, total_len+1);	// +1 for potential addition of slash.
+		path = (char*)realloc(path, total_len+1);       // +1 for potential addition of slash.
 		memcpy(path, home, home_len);
 		if (XDG_CONFIG_HOME_SUFFIX[sizeof(XDG_CONFIG_HOME_SUFFIX)-2] == '/') {
 			// -2 offset array's zero indexing and skip terminating null.
@@ -67,7 +67,7 @@ char* get_xdg_config_home() {
 		assert(is_path_not_empty(path));
 		if (!is_absolute_path(path)) {
 			free(path);
-			path = NULL;	// Not sure if useful.
+			path = NULL;    // Not sure if useful.
 		}
 	}
 	return path;
@@ -79,7 +79,7 @@ char* get_xdg_data_home() {
 		char *home = get_env(HOME, NULL);
 		if (is_path_empty(home) || !is_absolute_path(home)) {
 			free(path);
-			path = NULL;	// Not sure if useful.
+			path = NULL;    // Not sure if useful.
 		}
 		const size_t home_len = strlen(home);
 
@@ -88,7 +88,7 @@ char* get_xdg_data_home() {
 			// -1 offset for array's zero indexing.
 
 		const size_t total_len = home_len + sizeof(XDG_DATA_HOME_SUFFIX);
-		path = (char*)realloc(path, total_len+1);	// +1 for potential addition of slash.
+		path = (char*)realloc(path, total_len+1);       // +1 for potential addition of slash.
 		memcpy(path, home, home_len);
 		if (XDG_DATA_HOME_SUFFIX[sizeof(XDG_DATA_HOME_SUFFIX)-2] == '/') {
 			// -2 offset array's zero indexing and skip terminating null.
@@ -102,7 +102,7 @@ char* get_xdg_data_home() {
 		assert(is_path_not_empty(path));
 		if (!is_absolute_path(path)) {
 			free(path);
-			path = NULL;	// Not sure if useful.
+			path = NULL;    // Not sure if useful.
 		}
 	}
 	return path;

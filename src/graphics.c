@@ -1,20 +1,20 @@
 #ifdef __has_include
 #	if ! __has_include(<xcb/xcb.h>)
 #		warning "System does not appear to have a necessary library: \"<xcb/xcb.h>\""
-#	endif	// <xcb/xcb.h>
+#	endif   // <xcb/xcb.h>
 #	if ! __has_include(<xcb/xcb_image.h>)
 #		warning "System does not appear to have a necessary library: \"<xcb/xcb_image.h>\""
-#	endif	// <xcb/xcb_image.h>
+#	endif   // <xcb/xcb_image.h>
 #	if ! __has_include(<xcb/randr.h>)
 #		warning "System does not appear to have a necessary library: \"<xcb/randr.h>\""
-#	endif	// <xcb/randr.h>
+#	endif   // <xcb/randr.h>
 #	if ! __has_include(<xcb/xcb_util.h>)
 #		warning "System does not appear to have a necessary library: \"<xcb/xcb_util.h>\""
-#	endif	// <xcb/xcb_util.h>
+#	endif   // <xcb/xcb_util.h>
 #	if ! __has_include(<xcb/xcb_errors.h>)
 #		warning "System does not appear to have a necessary library: \"<xcb/xcb_errors.h>\""
-#	endif	// <xcb/xcb_errors.h>
-#endif	// __has_include
+#	endif   // <xcb/xcb_errors.h>
+#endif  // __has_include
 
 
 #include <string.h>
@@ -22,8 +22,8 @@
 #include <xcb/xcb_image.h>
 #include <xcb/randr.h>
 #include <xcb/xcb_errors.h>
-#include <stdlib.h>	// For free.
-#include <stdio.h>	// For fprintf.
+#include <stdlib.h>     // For free.
+#include <stdio.h>      // For fprintf.
 #include <assert.h>
 #include "graphics.h"
 #include "image.h"
@@ -61,11 +61,11 @@ static xcb_screen_t *screen;
 // 	xy-pixmap represents each plane as a bitmap, ordered from most significant to least in bit order with no padding between.
 //const xcb_image_format_t image_format = XCB_IMAGE_FORMAT_Z_PIXMAP;
 #define image_format XCB_IMAGE_FORMAT_Z_PIXMAP
-static xcb_image_order_t byte_order;	// Component byte (or nybble if bpp=4) order for z-pixmap, otherwise byte order of scanline.
+static xcb_image_order_t byte_order;    // Component byte (or nybble if bpp=4) order for z-pixmap, otherwise byte order of scanline.
 //const xcb_image_order_t bit_order = XCB_IMAGE_ORDER_LSB_FIRST;
 //#define bit_order XCB_IMAGE_ORDER_LSB_FIRST;
-static xcb_image_order_t bit_order;	// Bit order of each scanline unit for xy-bitmap and xy-pixmap. *Maybe* order of each pixel in z-pixmap?
-//static const uint8_t scanline_pad = 32;	// Valid: 8, 16, 32.
+static xcb_image_order_t bit_order;     // Bit order of each scanline unit for xy-bitmap and xy-pixmap. *Maybe* order of each pixel in z-pixmap?
+//static const uint8_t scanline_pad = 32;       // Valid: 8, 16, 32.
 static uint8_t scanline_pad;
 	// Valid: 8, 16, 32.
 	// Each (bitmap) scanline is padded to a multiple of this value.
@@ -83,8 +83,8 @@ static uint8_t bits_per_pixel = 0;
 	// 	XY_BITMAP: 1.
 	// 	XY_PIXMAP: any.
 
-static xcb_visualtype_t *visual = NULL;	// A visual is a description of a pixel.
-static int depth;	// Number of bits per pixel. In this case, for the root window.
+static xcb_visualtype_t *visual = NULL; // A visual is a description of a pixel.
+static int depth;       // Number of bits per pixel. In this case, for the root window.
 static xcb_atom_t esetroot_pmap_id, _xrootpmap_id;
 static xcb_gcontext_t gc;
 
@@ -146,7 +146,7 @@ xcb_atom_t get_atom(xcb_connection_t* conn, const char *atom_name) {
 	atom_cookie = xcb_intern_atom(conn, 0, strlen(atom_name), atom_name);
 	if (!(rep = xcb_intern_atom_reply(conn, atom_cookie, NULL))) {
 		fprintf(stderr, "No I.D. found for atom: \"%s\"\n", atom_name);
-		return 0;	// Null.
+		return 0;       // Null.
 	}
 	atom = rep->atom;
 	free(rep);
@@ -160,7 +160,7 @@ bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_
 	if (!atom_r) {
 		static const char *text = "(No reply to atom name query)";
 		assert(strlen(text) <= MAX_ATOM_NAME_LEN);
-		strcpy(name, text);	// Copying literal.
+		strcpy(name, text);     // Copying literal.
 		return false;
 	} else {
 		if (err) handle_error(conn, err);
@@ -177,7 +177,7 @@ bool get_atom_name(xcb_connection_t *conn, const xcb_atom_t atom, char name[MAX_
 			return false;
 		}
 		memcpy(name, xcb_get_atom_name_name(atom_r), length);
-		name[length] = '\0';	// Hopefully not necessary.
+		name[length] = '\0';    // Hopefully not necessary.
 		return true;
 	}
 }
@@ -203,7 +203,7 @@ xcb_get_property_reply_t* get_property_reply(
 		);
 		return NULL;
 	}
-	xcb_flush(conn);	// Probably not necessary.
+	xcb_flush(conn);        // Probably not necessary.
 
 	xcb_get_property_reply_t *prop_r;
 	if (!(prop_r = xcb_get_property_reply(conn, prop_c, &err))) {
@@ -236,8 +236,8 @@ xcb_get_property_reply_t* get_property_reply(
 
 bool init_xcb() {
 	// Initialise connection to X11 server:
-	int screenNum;						// Assigned by xcb_connect().
-	conn = xcb_connect(NULL, &screenNum);	// NULL uses DISPLAY env.
+	int screenNum;                          // Assigned by xcb_connect().
+	conn = xcb_connect(NULL, &screenNum);   // NULL uses DISPLAY env.
 
 	// https://xcb.freedesktop.org/manual/structxcb__setup__t.html
 	const xcb_setup_t *setup = xcb_get_setup(conn);
@@ -267,7 +267,7 @@ bool init_xcb() {
 	screen = iter.data;
 
 	// Get root visual:
-	//xcb_visualtype_t *visual = NULL;	// A visual is a description of a pixel.
+	//xcb_visualtype_t *visual = NULL;      // A visual is a description of a pixel.
 	{
 		xcb_depth_iterator_t depth_iter = xcb_screen_allowed_depths_iterator(screen);
 		depth = depth_iter.data->depth;
@@ -298,8 +298,8 @@ bool init_xcb() {
 		);*/
 
 	}
-	//bits_per_pixel = visual->bits_per_rgb_value;	// Does this account for transparency? What about non-RGB colour model encoding?
-	//bits_per_pixel = screen->root_depth / 8;	// Does this account for transparency? What about non-RGB encoding?
+	//bits_per_pixel = visual->bits_per_rgb_value;  // Does this account for transparency? What about non-RGB colour model encoding?
+	//bits_per_pixel = screen->root_depth / 8;      // Does this account for transparency? What about non-RGB encoding?
 
 	// Consider xcb_setup_pixmap_formats().
 	// 	https://github.com/FFmpeg/FFmpeg/blob/9135dffd177d457a8a1781b9e6c6d400648165cb/libavdevice/xcbgrab.c#L524
@@ -319,8 +319,8 @@ bool init_xcb() {
 	// Get format:
 	//
 	/*xcb_format_t *fmt = xcb_setup_pixmap_formats(setup);
-	bits_per_pixel = fmt->bits_per_pixel;	// 1?
-	//scanline_pad = fmt->scanline_pad;	// 1?
+	bits_per_pixel = fmt->bits_per_pixel;   // 1?
+	//scanline_pad = fmt->scanline_pad;     // 1?
 	//depth = fmt->depth;*/
 	//
 	{
@@ -448,20 +448,20 @@ bool init_xcb() {
 		width = 150,
 		height = 150
 	;
-	win = xcb_generate_id(conn);	// Ask for our window's Id.
+	win = xcb_generate_id(conn);    // Ask for our window's Id.
 	// Create the window:
-	xcb_create_window (conn,		// connection
-		XCB_COPY_FROM_PARENT,		// depth (same as root)
-		win,				// window Id
-		screen->root,			// parent window
-		0, 0,				// x, y
-		150, 150,			// width, height
-		10,				// border_width
-		XCB_WINDOW_CLASS_INPUT_OUTPUT,	// class
-		screen->root_visual,		// visual
-		0, NULL  	                // masks, not used yet 
+	xcb_create_window (conn,                // connection
+		XCB_COPY_FROM_PARENT,           // depth (same as root)
+		win,                            // window Id
+		screen->root,                   // parent window
+		0, 0,                           // x, y
+		150, 150,                       // width, height
+		10,                             // border_width
+		XCB_WINDOW_CLASS_INPUT_OUTPUT,  // class
+		screen->root_visual,            // visual
+		0, NULL                         // masks, not used yet
 	);
-	xcb_map_window(conn, win);	// Map the window on the screen.*/
+	xcb_map_window(conn, win);      // Map the window on the screen.*/
 
 
 	// Initialise atoms (needed below):
@@ -620,7 +620,7 @@ monitor_list const get_monitor_info() {
 			name_length
 		);
 		assert(ret.monitor[ret.ct].name[name_length - 1] == '\0');
-		ret.monitor[ret.ct++].name[name_length] = '\0';	// Hopefully not necessary.
+		ret.monitor[ret.ct++].name[name_length] = '\0'; // Hopefully not necessary.
 		free(anr);
 	}
 
@@ -643,31 +643,31 @@ void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const 
 	xcb_generic_error_t *err;
 
 
-	if (atoms->wm_desktop_atom.id) {	// Do not check windows that are reported to not be on the user's current virtual desktop:
+	if (atoms->wm_desktop_atom.id) {        // Do not check windows that are reported to not be on the user's current virtual desktop:
 		xcb_get_property_reply_t *wm_desktop_reply;
 		if ((wm_desktop_reply = get_property_reply(conn, win,
 			atoms->wm_desktop_atom.id,
 			XCB_ATOM_CARDINAL,
-			4,	// 8b --> 32b
-			0	// Silent.
+			4,      // 8b --> 32b
+			0       // Silent.
 		))) {
 			uint32_t *wm_desktop_atom_value = (uint32_t*){xcb_get_property_value(wm_desktop_reply)};
-			if (*(xcb_atom_t*)wm_desktop_atom_value != vdesktop_id) {	// Reported not on current virtual desktop.
+			if (*(xcb_atom_t*)wm_desktop_atom_value != vdesktop_id) {       // Reported not on current virtual desktop.
 				p_delete(&wm_desktop_reply);
-				return;	// Do not count this window or its children.
+				return; // Do not count this window or its children.
 			}
 			p_delete(&wm_desktop_reply);
 		}
 	}
 
 
-	{	// Aggregate strut dimensions if present on the window:
+	{       // Aggregate strut dimensions if present on the window:
 		xcb_get_property_reply_t *query_atom_reply;
 		if ((query_atom_reply = get_property_reply(conn, win,
 			atoms->query_atom.id,
 			XCB_ATOM_ATOM,
-			(strlen(atoms->query_atom.name)*8)/32,	// 8b --> 32b
-			0	// Silent.
+			(strlen(atoms->query_atom.name)*8)/32,  // 8b --> 32b
+			0       // Silent.
 		))) {
 			uint32_t *query_atom_value = (uint32_t*){xcb_get_property_value(query_atom_reply)};
 			if (*(xcb_atom_t*)query_atom_value == atoms->match_atom.id) {
@@ -675,18 +675,18 @@ void get_dock_size_recursively(xcb_connection_t *conn, xcb_window_t *win, const 
 				if ((strut_partial_reply = get_property_reply(conn, win,
 					atoms->key_atom.id,
 					XCB_ATOM_CARDINAL,
-					12*4,	// CARDINAL[12], each 32bit.
+					12*4,   // CARDINAL[12], each 32bit.
 					1
 				))) {
 					uint32_t *valuee = (uint32_t*){xcb_get_property_value(strut_partial_reply)};
-					result->width += valuee[0] + valuee[1];		// Left + Right.
-					result->height += valuee[2] + valuee[3];	// Top + Bottom.
+					result->width += valuee[0] + valuee[1];         // Left + Right.
+					result->height += valuee[2] + valuee[3];        // Top + Bottom.
 					p_delete(&strut_partial_reply);
 				} else {
 					fprintf(stderr, "Failed to query dock window's strut dimensions.\n");
 				}
 				p_delete(&query_atom_reply);
-				return;	// Assuming any child window struts would be included in the parent's.
+				return; // Assuming any child window struts would be included in the parent's.
 			}
 			p_delete(&query_atom_reply);
 		}
@@ -721,7 +721,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 		xcb_get_property_reply_t *current_desktop_reply;
 		if ((current_desktop_reply = get_property_reply(conn, win,
 			Net_Current_Desktop.id, XCB_ATOM_CARDINAL, 4,
-			0	// Silent.
+			0       // Silent.
 		))) {
 			uint32_t *current_desktop_value = (uint32_t*){xcb_get_property_value(current_desktop_reply)};
 			// Should probably add data validation.
@@ -744,7 +744,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 		xcb_get_property_reply_t *workarea_atom_reply;
 		if ((workarea_atom_reply = get_property_reply(conn, win,
 			Net_Workarea.id, XCB_ATOM_CARDINAL, 4*4,
-			0	// Silent.
+			0       // Silent.
 		))) {
 			printf("Using \"%s\". This functionality is untested! Please report bugs.\n", Net_Workarea.name);
 			uint32_t **workarea_atom_value = (uint32_t**){xcb_get_property_value(workarea_atom_reply)};
@@ -763,7 +763,7 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 	//
 
 	bool
-		//has_window_type = false,	// Assuming support if other criteria are met.
+		//has_window_type = false,      // Assuming support if other criteria are met.
 		has_workarea = false,
 		has_dock = false,
 		has_strut = false,
@@ -790,12 +790,12 @@ void get_dock_size(xcb_connection_t *conn, xcb_window_t *win, XY_Dimensions * co
 			1
 		))) {
 			fprintf(stderr, "Failed to query atom: \"%s\"\n", support_atom_name);
-			return;	// Give up.
+			return; // Give up.
 		}
 
 		uint32_t *support_atom_value = (uint32_t*){xcb_get_property_value(support_atom_reply)};
 		assert(sizeof(support_atom_value[0]) == 4);
-		const int length = xcb_get_property_value_length(support_atom_reply);	// 8b count of 32b units.
+		const int length = xcb_get_property_value_length(support_atom_reply);   // 8b count of 32b units.
 		assert(length >= sizeof(support_atom_value[0]));
 		if (verbosity >= 6) {
 			printf("Window manager claims to support these features (atoms):\n");
@@ -876,7 +876,7 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 	// We could have saved max_req_len from setup->maximum_request_length. Getting it here seems cleaner.
 	const uint32_t max_req_len = xcb_get_maximum_request_length(conn);
 	const uint32_t req_len = sizeof(xcb_put_image_request_t);
-	const size_t len = (req_len + img->data_len) >> 2;	// Bit shift converts number of 8-bit bytes to number of 32-bit words.
+	const size_t len = (req_len + img->data_len) >> 2;      // Bit shift converts number of 8-bit bytes to number of 32-bit words.
 
 
 	if (verbosity >= 3) {
@@ -925,39 +925,39 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 	}
 	// These methods also work:
 	/*xcb_image_t *image = xcb_image_create(
-		img->width, img->height,	// Both in pixels. Do not include padding.
-		image_format,			// Format.
+		img->width, img->height,        // Both in pixels. Do not include padding.
+		image_format,                   // Format.
 		scanline_pad,
-		depth,				// Depth.
+		depth,                          // Depth.
 		bits_per_pixel,
 		scanline_unit,
 		byte_order,
 		bit_order,
-		img->pixels,			// "base" (freed by xcb_image_destroy).
-		img->data_len,			// Data length (bytes).
-		img->pixels			// Data.
+		img->pixels,                    // "base" (freed by xcb_image_destroy).
+		img->data_len,                  // Data length (bytes).
+		img->pixels                     // Data.
 	);*/
 	/*xcb_image_t *image = xcb_image_create_native(conn,
-		img->width, img->height,	// Both in pixels. Do not include padding.
-		image_format,			// Format.
-		depth,				// Depth.
-		img->pixels,			// "base" (freed by xcb_image_destroy).
-		img->data_len,		 	// Data length (bytes).
-		img->pixels			// Data.
+		img->width, img->height,        // Both in pixels. Do not include padding.
+		image_format,                   // Format.
+		depth,                          // Depth.
+		img->pixels,                    // "base" (freed by xcb_image_destroy).
+		img->data_len,                  // Data length (bytes).
+		img->pixels                     // Data.
 	);*/
 	xcb_image_t *image = xcb_image_create_native(conn,
-		img->width, img->height,	// Both in pixels. Do not include padding.
-		image_format,			// Format.
-		depth,				// Depth.
-		NULL, 				// "base" (freed by xcb_image_destroy).
-		0,			 	// Data length (bytes).
-		NULL				// Data.
+		img->width, img->height,        // Both in pixels. Do not include padding.
+		image_format,                   // Format.
+		depth,                          // Depth.
+		NULL,                           // "base" (freed by xcb_image_destroy).
+		0,                              // Data length (bytes).
+		NULL                            // Data.
 	);
 	if (!image) {
 		fprintf(stderr, "Failed to load image.\n");
 		return false;
 	}
-	image->data = img->pixels;	// Only assigned like this when "data" field was NULL.
+	image->data = img->pixels;      // Only assigned like this when "data" field was NULL.
 	assert(image->data);
 	if (xcb_image_native(conn, image, false)) {
 		if (verbosity >= 3) printf("Image loaded in native format.\n");
@@ -968,11 +968,11 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 		if ((tmp = xcb_image_native(conn, image, true))) {
 			if (tmp == image) {
 				fprintf(stderr, "Conversion failed.\n");
-				//xcb_image_destroy(image);	// Automatic?
+				//xcb_image_destroy(image);     // Automatic?
 				return false;
 			}
 			assert(tmp);
-			xcb_image_destroy(image);	// Destroy the non-native version.
+			xcb_image_destroy(image);       // Destroy the non-native version.
 			image = tmp;
 			if (verbosity > 1) printf(
 				"Converting:\n"
@@ -1005,7 +1005,7 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 			assert(image->data && "image->data not converted.");
 		} else {
 			fprintf(stderr, "Conversion failed.\n");
-			//xcb_image_destroy(image);	// Automatic?
+			//xcb_image_destroy(image);     // Automatic?
 			return false;
 		}
 	}
@@ -1020,50 +1020,50 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 	);
 	if (len < max_req_len) {
 		if (verbosity >= 2) printf("Using non-buffered mode (len < max_req_len).\n");
-		cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
-			image_format,				// format
-			p,					// drawable
-			gc,					// gc
-			image->width, image->height,		// width, height
-			//0, 0,					// dst_x, dst_y
-			monitor->offset_x, monitor->offset_y,	// dst_x, dst_y
-			0,					// left_pad
-			//screen->root_depth,			// depth
-			image->depth,				// depth
-			image->size,				// data_len
-			image->data				// data
+		cookie = xcb_put_image_checked(conn,            // Load image into pixmap.
+			image_format,                           // format
+			p,                                      // drawable
+			gc,                                     // gc
+			image->width, image->height,            // width, height
+			//0, 0,                                 // dst_x, dst_y
+			monitor->offset_x, monitor->offset_y,   // dst_x, dst_y
+			0,                                      // left_pad
+			//screen->root_depth,                   // depth
+			image->depth,                           // depth
+			image->size,                            // data_len
+			image->data                             // data
 		);
-		/*cookie = xcb_image_put(conn,	// Load image into pixmap.
-			p,		// dst (drawable)
-			gc,		// gc (ignored for XY and Z pixmap formats?)
-			image,		// src (xcb_image_t)
-			0, 0,		// x, y
-			0		// left_pad
+		/*cookie = xcb_image_put(conn,  // Load image into pixmap.
+			p,              // dst (drawable)
+			gc,             // gc (ignored for XY and Z pixmap formats?)
+			image,          // src (xcb_image_t)
+			0, 0,           // x, y
+			0               // left_pad
 		);*/
 		if ((error = xcb_request_check(conn, cookie))) {
 			fprintf(stderr, "Failed to put image.\n");
 			handle_error(conn, error);
-			//xcb_image_destroy(image);	// Automatic?
+			//xcb_image_destroy(image);     // Automatic?
 			return false;
 		}
-	} else {	// len >= max_req_len
+	} else {        // len >= max_req_len
 		if (verbosity >= 2) printf("Using buffered mode (len >= max_req_len).\n");
 		BYTE *data_src = image->data;
 		int rows_remaining = image->height;
 		unsigned short req_num = 0;
-		int rows = ( (max_req_len<<2) - req_len - 4) / image->stride;	// 32-bit word is 4* 8-bit bytes.
+		int rows = ( (max_req_len<<2) - req_len - 4) / image->stride;   // 32-bit word is 4* 8-bit bytes.
 		//for (y_off = 0; y_off + rows_per_request <= img->height; y_off += rows_per_request) {
 		if (rows <= 0) {
 			fprintf(stderr, "Error: rows <= 0\n");
-			//xcb_image_destroy(image);	// Automatic?
+			//xcb_image_destroy(image);     // Automatic?
 			return false;
 		}
 		do {
 			if (rows_remaining < rows) rows = rows_remaining;
-			size_t data_len = rows * image->stride;	// rows*stride
+			size_t data_len = rows * image->stride; // rows*stride
 			if (data_len + req_len >= max_req_len<<2) {
 				fprintf(stderr, "Data length is too long. Aborting.");
-				//xcb_image_destroy(image);	// Automatic?
+				//xcb_image_destroy(image);     // Automatic?
 				return false;
 			}
 
@@ -1074,18 +1074,18 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 				return false;
 			}
 
-			cookie = xcb_put_image_checked(conn,		// Load image into pixmap.
-				image_format,						// format.
-				p,							// drawable
-				gc,							// gc
-				image->width, rows,					// width, height
-				//0, image->height - rows_remaining,			// dst_x, dst_y
-				monitor->offset_x,					// dst_x
-				monitor->offset_y + (image->height - rows_remaining),	// dst_y
-				0,							// left_pad
-				screen->root_depth,					// depth
-				data_len,						// data_len
-				data_src						// data
+			cookie = xcb_put_image_checked(conn,            // Load image into pixmap.
+				image_format,                                           // format.
+				p,                                                      // drawable
+				gc,                                                     // gc
+				image->width, rows,                                     // width, height
+				//0, image->height - rows_remaining,                    // dst_x, dst_y
+				monitor->offset_x,                                      // dst_x
+				monitor->offset_y + (image->height - rows_remaining),   // dst_y
+				0,                                                      // left_pad
+				screen->root_depth,                                     // depth
+				data_len,                                               // data_len
+				data_src                                                // data
 			);
 			if ((error = xcb_request_check(conn, cookie))) {
 				fprintf(stderr, "Failed to put image.\n");
@@ -1115,7 +1115,7 @@ bool write_to_pixmap(xcb_pixmap_t p, image_t *img, const monitor_info * const mo
 					rows * img->width,
 					img->width * img->height
 				);
-				//xcb_image_destroy(image);	// Automatic?
+				//xcb_image_destroy(image);     // Automatic?
 				return false;
 			}
 			rows_remaining -= rows;
@@ -1138,7 +1138,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	assert(screen);
 
 
-	// 
+	//
 	// Get target dimensions for wallpaper:
 	//
 
@@ -1186,7 +1186,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 		xcb_get_geometry_cookie_t geo_c = xcb_get_geometry(conn, old_root_pixmap);
 		xcb_get_geometry_reply_t *geo_r;
 		if ((geo_r = xcb_get_geometry_reply(conn, geo_c, &error))) {
-			assert(geo_r->x == 0 && geo_r->y == 0);	// Should always be true for pixmaps.
+			assert(geo_r->x == 0 && geo_r->y == 0); // Should always be true for pixmaps.
 			// Not testing geo_r->depth.
 			if (
 				   geo_r->width == monitor->width
@@ -1197,7 +1197,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 				root_pixmap = old_root_pixmap;
 			} else {
 				fprintf(stderr, "\tX/Y dimension(s) does/do not match target monitor!\n");
-				root_pixmap = 0;	// Null.
+				root_pixmap = 0;        // Null.
 			}
 			free(geo_r);
 		} else {
@@ -1205,13 +1205,13 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 			if (error) handle_error(conn, error);
 			// Not clearing value of old_root_pixmap here.
 			// We will try freeing it later, but that will probably fail.
-			root_pixmap = 0;		// Null.
+			root_pixmap = 0;                // Null.
 		}
 
 		p_delete(&esetroot_pmap_id_reply);
 	} else {
 		if (verbosity >= 3) printf("No pre-existing root background was found.\n");
-		root_pixmap = old_root_pixmap = 0;	// Null.
+		root_pixmap = old_root_pixmap = 0;      // Null.
 	}
 	if (!root_pixmap) {
 		if (verbosity >= 3) printf("A new pixmap will be created for root background.\n");
@@ -1262,7 +1262,7 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	}
 	// Note: img should be freed but img->pixels is freed automatically by xcb_image_destroy.
 
-	if (	// If target dimensions were not achieved.
+	if (    // If target dimensions were not achieved.
 		   img->width != target_width
 		|| img->height != target_height
 	) {
@@ -1270,10 +1270,10 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 		assert(img->height <= target_height);
 		// Clear pixels that will not be written to.
 		xcb_clear_area(conn, 0, root_pixmap,
-			(monitor->offset_x + target_width) - img->width,	// x
-			(monitor->offset_y + target_height) - img->height,	// y
-			target_width - img->width,				// width
-			target_height - img->height				// height
+			(monitor->offset_x + target_width) - img->width,        // x
+			(monitor->offset_y + target_height) - img->height,      // y
+			target_width - img->width,                              // width
+			target_height - img->height                             // height
 		);
 	}
 
@@ -1288,13 +1288,13 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 	// 	LSB-first.
 	// 	8-bit pad.
 	xcb_pixmap_t p = xcb_create_pixmap_from_bitmap_data(conn,
-		screen->root,				// Parent (drawable).
-		img->pixels,				// Bitmap data.
-		img->width, img->height,		// Width and height (in bits).
-		screen->root_depth,			// Target depth.
-		screen->black_pixel,	// Foreground pixel (1 bits).
-		screen->white_pixel,	// Background pixel (0 bits).
-		&gc			// Graphical context to be created.
+		screen->root,                   // Parent (drawable).
+		img->pixels,                    // Bitmap data.
+		img->width, img->height,        // Width and height (in bits).
+		screen->root_depth,             // Target depth.
+		screen->black_pixel,            // Foreground pixel (1 bits).
+		screen->white_pixel,            // Background pixel (0 bits).
+		&gc                             // Graphical context to be created.
 	);
 	if (!p) {
 		free(img);
@@ -1371,8 +1371,8 @@ bool set_wallpaper(const file_path_t wallpaper_file_path, const monitor_info * c
 
 
 	if (
-		root_pixmap != old_root_pixmap	// We are not using the old pixmap.
-		&& old_root_pixmap		// An old pixmap was detected.
+		root_pixmap != old_root_pixmap  // We are not using the old pixmap.
+		&& old_root_pixmap              // An old pixmap was detected.
 	) {
 		// Free old wallpaper:
 		if (verbosity > 3) printf("Deleting old pixmap from server: \n\t  %u\n\t%#x\n", old_root_pixmap, old_root_pixmap);

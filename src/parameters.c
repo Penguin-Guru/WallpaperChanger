@@ -24,7 +24,7 @@ bool handle_verbosity(const arg_list_t * const al);
 bool handle_print_help(const arg_list_t * const al);
 
 
-parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
+parameter_t params_known[] = {  // Accessible via both C.L.I. and config file.
 
 	//
 	// Run type parameters:
@@ -32,8 +32,8 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 
 	{
 		.handler_set = (handler_set_t){
-			.name		= "set",
-			.description	=
+			.name           = "set",
+			.description    =
 				"Change the active/current wallpaper."
 					"\n\t\t\tSpecified path must be within the (default, unless configured) wallpaper path."
 					"\n\t\t\tIf no file or directory is specified, the top level directory is used."
@@ -41,16 +41,16 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 						"\n\t\t\t\tNew wallpapers are preferred when available."
 						"\n\t\t\t\tSelection of previously used wallpapers is randomised."
 				,
-			.fn		= handle_set,
-			.arg_list	= 0	// Null.
+			.fn             = handle_set,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag  	= "set",
-			.short_flag 	= "s"
+			.long_flag      = "set",
+			.short_flag     = "s"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 1
+			.min            = 0,
+			.max            = 1
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11 | COMPONENT_DB,
@@ -58,18 +58,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "set-new",
-			.description	= "Set a wallpaper not previously used.",
-			.fn		= handle_set_new,
-			.arg_list	= 0	// Null.
+			.name           = "set-new",
+			.description    = "Set a wallpaper not previously used.",
+			.fn             = handle_set_new,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "set-new",
-			.short_flag	= "sn"
+			.long_flag      = "set-new",
+			.short_flag     = "sn"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
+			.min            = 0,
+			.max            = 0
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11 | COMPONENT_DB,
@@ -77,18 +77,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "set-favourite",
-			.description	= "Set a wallpaper you have previously marked as a favourite.",
-			.fn		= handle_set_fav,
-			.arg_list	= 0	// Null.
+			.name           = "set-favourite",
+			.description    = "Set a wallpaper you have previously marked as a favourite.",
+			.fn             = handle_set_fav,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "set-fav",
-			.short_flag	= "sf"
+			.long_flag      = "set-fav",
+			.short_flag     = "sf"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
+			.min            = 0,
+			.max            = 0
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11 | COMPONENT_DB,
@@ -96,57 +96,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "restore-recent",
-			.description	= "Restore (the most) recent wallpapers to (all) connected monitors.",
-			.fn		= handle_restore_recent,
-			.arg_list	= 0	// Null.
+			.name           = "restore-recent",
+			.description    = "Restore (the most) recent wallpapers to (all) connected monitors.",
+			.fn             = handle_restore_recent,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "restore",
-			.short_flag	= "r"
+			.long_flag      = "restore",
+			.short_flag     = "r"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
-		},
-		.type = RUN,
-		.requirements = COMPONENT_X11 | COMPONENT_DB,
-		.previous_load = NONE
-	},
-
-	{
-		.handler_set = (handler_set_t){
-			.name		= "favourite",
-			.description	= "Mark the current wallpaper as a favourite.",
-			.fn		= handle_fav_current,
-			.arg_list	= 0	// Null.
-		},
-		.flag_pair = (flag_pair_t){
-			.long_flag	= "fav",
-			.short_flag	= "f"
-		},
-		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
-		},
-		.type = RUN,
-		.requirements = COMPONENT_DB,
-		.previous_load = NONE
-	},
-	{
-		.handler_set = (handler_set_t){
-			.name		= "delete",
-			.description	= "Delete the current wallpaper file and its database entry.",
-			.fn		= handle_delete_current,
-			.arg_list	= 0	// Null.
-		},
-		.flag_pair = (flag_pair_t){
-			.long_flag	= "del",
-			.short_flag	= "d"
-		},
-		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 1
+			.min            = 0,
+			.max            = 0
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11 | COMPONENT_DB,
@@ -155,18 +116,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 
 	{
 		.handler_set = (handler_set_t){
-			.name		= "print-current",
-			.description	= "Print information about the current wallpaper file/image.",
-			.fn		= handle_print,
-			.arg_list	= 0	// Null.
+			.name           = "favourite",
+			.description    = "Mark the current wallpaper as a favourite.",
+			.fn             = handle_fav_current,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "print",
-			.short_flag	= "p"
+			.long_flag      = "fav",
+			.short_flag     = "f"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 1
+			.min            = 0,
+			.max            = 0
 		},
 		.type = RUN,
 		.requirements = COMPONENT_DB,
@@ -174,18 +135,57 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "list_monitors",
-			.description	= "List connected outputs reported by the display server.",
-			.fn		= handle_list_monitors,
-			.arg_list	= 0	// Null.
+			.name           = "delete",
+			.description    = "Delete the current wallpaper file and its database entry.",
+			.fn             = handle_delete_current,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "list-monitors",
-			.short_flag	= "lm"
+			.long_flag      = "del",
+			.short_flag     = "d"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
+			.min            = 0,
+			.max            = 1
+		},
+		.type = RUN,
+		.requirements = COMPONENT_X11 | COMPONENT_DB,
+		.previous_load = NONE
+	},
+
+	{
+		.handler_set = (handler_set_t){
+			.name           = "print-current",
+			.description    = "Print information about the current wallpaper file/image.",
+			.fn             = handle_print,
+			.arg_list       = 0     // Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag      = "print",
+			.short_flag     = "p"
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min            = 0,
+			.max            = 1
+		},
+		.type = RUN,
+		.requirements = COMPONENT_DB,
+		.previous_load = NONE
+	},
+	{
+		.handler_set = (handler_set_t){
+			.name           = "list_monitors",
+			.description    = "List connected outputs reported by the display server.",
+			.fn             = handle_list_monitors,
+			.arg_list       = 0     // Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag      = "list-monitors",
+			.short_flag     = "lm"
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min            = 0,
+			.max            = 0
 		},
 		.type = RUN,
 		.requirements = COMPONENT_X11,
@@ -199,18 +199,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	// Parameters defined by the main application:
 	{
 		.handler_set = (handler_set_t){
-			.name		= "target_monitor",
-			.description	= "Specify UTF-8 name of monitor to target.",
-			.fn		= handle_target_monitor,
-			.arg_list	= 0	// Null.
+			.name           = "target_monitor",
+			.description    = "Specify UTF-8 name of monitor to target.",
+			.fn             = handle_target_monitor,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "monitor",
-			.short_flag	= "m"
+			.long_flag      = "monitor",
+			.short_flag     = "m"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -218,18 +218,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "database-path",
-			.description	= "Specify (non-standard) path to database.",
-			.fn		= handle_database_path,
-			.arg_list	= 0	// Null.
+			.name           = "database-path",
+			.description    = "Specify (non-standard) path to database.",
+			.fn             = handle_database_path,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "database-path",
-			.short_flag	= "db"
+			.long_flag      = "database-path",
+			.short_flag     = "db"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -237,18 +237,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "wallpaper-path",
-			.description	= "Specify (non-standard) path to wallpaper(s).",
-			.fn		= handle_wallpaper_path,
-			.arg_list	= 0	// Null.
+			.name           = "wallpaper-path",
+			.description    = "Specify (non-standard) path to wallpaper(s).",
+			.fn             = handle_wallpaper_path,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "wallpaper-path",
-			.short_flag	= "w"
+			.long_flag      = "wallpaper-path",
+			.short_flag     = "w"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -256,21 +256,21 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "follow_symlinks_beyond_specified_directory",
-			.description	= 
+			.name           = "follow_symlinks_beyond_specified_directory",
+			.description    =
 				"Allow symlinks in wallpaper-path to reference directories outside of it."
 					"\n\t\t\tNote: Symlinks to files are always allowed."
 				,
-			.fn		= handle_follow_symlinks_beyond_specified_directory,
-			.arg_list	= 0	// Null.
+			.fn             = handle_follow_symlinks_beyond_specified_directory,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "follow-symlinks",
-			.short_flag	= "fs"
+			.long_flag      = "follow-symlinks",
+			.short_flag     = "fs"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
+			.min            = 0,
+			.max            = 0
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -278,21 +278,21 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "scale-for-wm",
-			.description	=
+			.name           = "scale-for-wm",
+			.description    =
 				"Specify whether to scale wallpapers based on static foreground windows, like task bars and docks."
 					"\n\t\t\tNote: The \"wm\" is for \"window manager\". I'll try to improve clarity some day."
 				,
-			.fn		= handle_scale_for_wm,
-			.arg_list	= 0	// Null.
+			.fn             = handle_scale_for_wm,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "scale-for-wm",
-			.short_flag	= NULL
+			.long_flag      = "scale-for-wm",
+			.short_flag     = NULL
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -302,18 +302,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	// Parameters defined by the initialisation code:
 	{
 		.handler_set = (handler_set_t){
-			.name		= "config-file",
-			.description	= "Specify a (non-standard) config file to load.",
-			.fn		= handle_config_file,
-			.arg_list	= 0	// Null.
+			.name           = "config-file",
+			.description    = "Specify a (non-standard) config file to load.",
+			.fn             = handle_config_file,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "config-file",
-			.short_flag	= "c"
+			.long_flag      = "config-file",
+			.short_flag     = "c"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -321,18 +321,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 	},
 	{
 		.handler_set = (handler_set_t){
-			.name		= "verbosity",
-			.description	= "Specify level of verbosity. A larger integer means more output.",
-			.fn		= handle_verbosity,
-			.arg_list	= 0	// Null.
+			.name           = "verbosity",
+			.description    = "Specify level of verbosity. A larger integer means more output.",
+			.fn             = handle_verbosity,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "verbosity",
-			.short_flag	= "v"
+			.long_flag      = "verbosity",
+			.short_flag     = "v"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 1,
-			.max		= 1
+			.min            = 1,
+			.max            = 1
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,
@@ -341,18 +341,18 @@ parameter_t params_known[] = {	// Accessible via both C.L.I. and config file.
 
 	{
 		.handler_set = (handler_set_t){
-			.name		= "print-help",
-			.description	= "Print this help text.",
-			.fn		= handle_print_help,
-			.arg_list	= 0	// Null.
+			.name           = "print-help",
+			.description    = "Print this help text.",
+			.fn             = handle_print_help,
+			.arg_list       = 0     // Null.
 		},
 		.flag_pair = (flag_pair_t){
-			.long_flag	= "help",
-			.short_flag	= "h"
+			.long_flag      = "help",
+			.short_flag     = "h"
 		},
 		.arg_params = (param_arg_parameters_t){
-			.min		= 0,
-			.max		= 0
+			.min            = 0,
+			.max            = 0
 		},
 		.type = INIT,
 		.requirements = COMPONENT_NONE,

@@ -30,9 +30,9 @@
 
 
 #include <stdbool.h>
-#include <stddef.h>	// For size_t.
+#include <stddef.h>     // For size_t.
 #include "libxdgbasedir.h"
-#include "graphics.h"	// For monitor_info.
+#include "graphics.h"   // For monitor_info.
 #include "util.h"
 
 #define DEFAULT_DATA_FILE_NAME "wallpapers.log"
@@ -44,17 +44,17 @@
 static file_path_t data_directory = NULL;
 
 static file_path_t
-	data_file_path = NULL,	// Path to database.
-	wallpaper_path = NULL	// Wallpaper to operate on.
+	data_file_path = NULL,  // Path to database.
+	wallpaper_path = NULL   // Wallpaper to operate on.
 ;
 
-bool scale_for_wm = true;	// Scale wallpapers based on static, foreground windows.
+bool scale_for_wm = true;       // Scale wallpapers based on static, foreground windows.
 
 
 
 static monitor_list s_monitors;
-static uint32_t s_target_monitor_id = 0;		// Monitor index, not xcb_randr_output_t.
-static const char *s_target_monitor_name = NULL;	// Reference user input after loading component.
+static uint32_t s_target_monitor_id = 0;                // Monitor index, not xcb_randr_output_t.
+static const char *s_target_monitor_name = NULL;        // Reference user input after loading component.
 
 // Cache used by some functions:
 typedef struct wallpaper_info {
