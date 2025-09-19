@@ -542,6 +542,15 @@ short run_test_set(struct test_set *tests, const file_path_t filepath) {
 	return tests->ret;
 }
 struct test_set tests;  // Global struct for nftw functions. Eliminate later.
+static inline short attempt_set_wallpaper(const file_path_t fp, tags_t tags) {
+	if (set_new_current(fp, tags)) return 1;
+	// Failed to set the wallpaper.
+	if (num_file_skips_remaining) {    // Negative also true.
+		if (num_file_skips_remaining > 0) num_file_skips_remaining--;
+		return 0;        // Continue search.
+	}
+	return -1;       // Fail.
+}
 int search_for_wallpaper(
 	const char *filepath,
 	const struct stat *info,
@@ -557,8 +566,9 @@ int search_for_wallpaper(
 			break;  // Continue search.
 		case FTW_F: {
 			short ret;
-			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
-				set_new_current((const file_path_t)filepath, 0);
+			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1) {
+				ret = attempt_set_wallpaper((const file_path_t)filepath, 0);
+			}
 			return ret;
 		}
 		case FTW_SL: {
@@ -603,7 +613,7 @@ int search_for_wallpaper(
 					if (verbosity > 1) printf("%s -> %s\n", filepath, target);
 					ret = run_test_set(&tests, (const file_path_t)filepath);
 					if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
-						set_new_current((const file_path_t)filepath, 0);
+						ret = attempt_set_wallpaper((const file_path_t)filepath, 0);
 					break;
 				default:
 					fprintf(stderr, "Detected symlink to unsupported inode file type: \"%s\"\n", filepath);
@@ -739,8 +749,11 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 					memcpy(buff, get_wallpaper_path(), upper_path_len);
 					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
 					buff[upper_path_len + lower_path_len] = '\0';
-					set_new_current(buff, s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC));
-					return true;
+					switch (attempt_set_wallpaper(buff, s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC))) {
+						case 0 : continue;
+						case 1 : return true;
+						default: break;  // Fail.
+					}
 				}
 				if (++i == s_old_wallpaper_cache.ct) i = 0;
 			} while (i != start);
@@ -818,11 +831,33 @@ bool handle_set_fav(const arg_list_t * const al) {
 			break;
 	}
 
+	bool ret = false;
+
 	// Select a random favourite. Not ideal, but simple.
 	srand(time(NULL));
-	int which = rand() % favs->ct;
+	int start, i;
+	if ((i = start = rand() % favs->ct) < 0) {
+		fprintf(stderr, "Integer overflow while attempting to generate a random start position within query results.\n");
+		return false;
+	}
+	do {
+		assert(favs->row[i]->file);
+		switch (attempt_set_wallpaper(favs->row[i]->file, favs->row[i]->tags | n_criteria)) {
+			case 0 :
+				assert(ret == false);
+				if (++i == favs->ct) i = 0;
+				continue;
+			case 1 :
+				ret = true;
+				i = start;      // Exit loop.
+				break;
+			default:        // Fail.
+				assert(ret == false);
+				i = start;      // Exit loop.
+				break;
+		}
+	} while (i != start);
 
-	bool ret = set_new_current(favs->row[which]->file, favs->row[which]->tags | n_criteria);
 	free_rows(favs);
 	return ret;
 }
@@ -1017,6 +1052,30 @@ bool handle_scale_for_wm(const arg_list_t * const al) {
 	if (is_text_true(al->args[0])) scale_for_wm = true;
 	else scale_for_wm = false;
 	if (verbosity > 1) printf("User set: scale_for_wm = %s\n", scale_for_wm ? "true" : "false");
+	return true;
+}
+bool handle_max_file_skips(const arg_list_t * const al) {
+	assert(al);
+	assert(al->ct == 1);
+	assert(al->args[0]);
+
+	const char * val = al->args[0];
+	while (*val == '#' && *val != '\0') val++;      // Skip any leading '#' symbols.
+	if (*val == '\0') return false;                 // Do not process empty strings.
+
+	assert(errno == 0);
+	errno = 0;
+	char *endptr;
+	num_file_skips_remaining = strtol(val, &endptr, 10);
+	if (errno == ERANGE) {
+		fprintf(stderr, "Failed to parse specified value for max-file-skips.\n");
+		perror("strtol");
+		return false;
+	}
+	if (endptr == val) {
+		fprintf(stderr, "Failed to parse specified value for max-file-skips.\n");
+		return false;
+	}
 	return true;
 }
 bool handle_target_monitor(const arg_list_t * const al) {

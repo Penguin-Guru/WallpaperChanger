@@ -49,6 +49,7 @@ static file_path_t
 ;
 
 bool scale_for_wm = true;       // Scale wallpapers based on static, foreground windows.
+long num_file_skips_remaining = 0;        // Maximum number of wallpaper files that may be skipped due to errors.
 
 
 
