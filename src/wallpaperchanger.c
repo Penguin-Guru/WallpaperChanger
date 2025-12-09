@@ -541,8 +541,30 @@ short run_test_set(struct test_set *tests, const file_path_t filepath) {
 		if ((tests->ret = tests->test[i](filepath)) != 1) break;
 	return tests->ret;
 }
-struct test_set tests;  // Global struct for nftw functions. Eliminate later.
+bool is_test_in_set(short(*test)(const file_path_t filepath), struct test_set *tests) {
+	assert(test);
+	static_assert(sizeof(uint_fast8_t)*8 >= MAX_INODE_TESTS, "Data type must be large enough.");
+	for (uint_fast8_t i = 0; i < tests->ct; i++) {
+		if (tests->test[i] == test) return true;
+	}
+	return false;
+}
+static struct test_set tests;  // Global struct for nftw functions. Eliminate later.
+static inline tags_t get_historic_tags_by_path(const file_path_t fp) {
+	if (s_old_wallpaper_cache.ct == 0) {
+		if (populate_wallpaper_cache() < 0) return 0;	// 0=Null.
+	}
+	for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
+		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, fp)) {
+			return s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC);
+		}
+	}
+	return 0;	// 0=Null.
+}
 static inline short attempt_set_wallpaper(const file_path_t fp, tags_t tags) {
+	// Attempts to set wallpapers that are already known to be new should set the CURRENT flag in tags.
+	assert(tags == 0 || tags & encode_tag(TAG_CURRENT));
+	if (!tags) tags = get_historic_tags_by_path(fp);
 	if (set_new_current(fp, tags)) return 1;
 	// Failed to set the wallpaper.
 	if (num_file_skips_remaining) {    // Negative also true.
@@ -567,7 +589,9 @@ int search_for_wallpaper(
 		case FTW_F: {
 			short ret;
 			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1) {
-				ret = attempt_set_wallpaper((const file_path_t)filepath, 0);
+				// CURRENT flag may be set to prevent attempt_set_wallpaper re-testing for historic records.
+				tags_t tags = (is_test_in_set(wallpaper_is_new, &tests) ? encode_tag(TAG_CURRENT) : 0);
+				ret = attempt_set_wallpaper((const file_path_t)filepath, tags);
 			}
 			return ret;
 		}
@@ -612,8 +636,11 @@ int search_for_wallpaper(
 				case S_IFREG:
 					if (verbosity > 1) printf("%s -> %s\n", filepath, target);
 					ret = run_test_set(&tests, (const file_path_t)filepath);
-					if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1)
-						ret = attempt_set_wallpaper((const file_path_t)filepath, 0);
+					if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1) {
+						// CURRENT flag may be set to prevent attempt_set_wallpaper re-testing for historic records.
+						tags_t tags = (is_test_in_set(wallpaper_is_new, &tests) ? encode_tag(TAG_CURRENT) : 0);
+						ret = attempt_set_wallpaper((const file_path_t)filepath, tags);
+					}
 					break;
 				default:
 					fprintf(stderr, "Detected symlink to unsupported inode file type: \"%s\"\n", filepath);
@@ -667,16 +694,9 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 			// Path refers to regular file. Attempt to use it.
 
 			// Apply tags if file has been set before.
-			enum Tag tags = TAG_CURRENT;
 			const file_path_t sorp = get_start_of_relative_path(target_path);
 			assert(sorp && sorp[0]);        // Already confirmed that target_path is within wallpaper_path.
-			if (s_old_wallpaper_cache.ct == 0) populate_wallpaper_cache();
-			for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
-				if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, sorp)) {
-					tags |= s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC);
-					break;
-				}
-			}
+			const tags_t tags = encode_tag(TAG_CURRENT) | get_historic_tags_by_path(sorp);
 
 			//target_wallpaper = target_path;
 			//break;
@@ -749,7 +769,9 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 					memcpy(buff, get_wallpaper_path(), upper_path_len);
 					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
 					buff[upper_path_len + lower_path_len] = '\0';
-					switch (attempt_set_wallpaper(buff, s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC))) {
+					// Wallpaper path is known to be historic. Also set CURRENT flag, as expected by attempt_set_wallpaper.
+					const tags_t circumstantial_tags = encode_tag(TAG_HISTORIC) | encode_tag(TAG_CURRENT);
+					switch (attempt_set_wallpaper(buff, circumstantial_tags | s_old_wallpaper_cache.wallpapers[i].tags)) {
 						case 0 : continue;
 						case 1 : return true;
 						default: break;  // Fail.
@@ -842,6 +864,8 @@ bool handle_set_fav(const arg_list_t * const al) {
 	}
 	do {
 		assert(favs->row[i]->file);
+		assert(n_criteria & encode_tag(TAG_CURRENT));
+		assert(n_criteria & encode_tag(TAG_HISTORIC));
 		switch (attempt_set_wallpaper(favs->row[i]->file, favs->row[i]->tags | n_criteria)) {
 			case 0 :
 				assert(ret == false);
