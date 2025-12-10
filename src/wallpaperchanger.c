@@ -25,6 +25,7 @@
 #include "init.h"
 #include "image.h"
 #include "flatfiledb.h"
+#define MAX_INODE_TESTS 2	// Currently equal to the number of tests defined.
 #include "inode_test_set.h"
 
 
@@ -210,7 +211,6 @@ static inline file_path_t validate_directory(file_path_t path, const char * cons
 	return path;
 }
 
-
 static file_path_t get_data_directory() {
 	if (data_directory) {
 		assert(*data_directory);
@@ -246,6 +246,63 @@ static file_path_t get_wallpaper_path() {
 	}
 
 	return validate_directory(wallpaper_path, "wallpaper", true, true);
+}
+const file_path_t get_start_of_relative_path(const file_path_t full_path) {
+	// Relative paths are used to preserve functionality in the event that a user moves their root wallpaper directory.
+	assert(full_path);
+	assert(full_path[0]);
+
+	// Consolidate logic with is_path_within_path().
+	char *start_of_relative_path = strstr(full_path, get_wallpaper_path());
+	if (!start_of_relative_path) return NULL;
+
+	const size_t wpp_len = strlen(get_wallpaper_path());
+
+	// Relative path should start with a slash.
+	if (*(start_of_relative_path + wpp_len) != '/') return NULL;
+
+	//start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
+	start_of_relative_path += wpp_len;
+	if (start_of_relative_path - full_path < 0) return NULL;        // Quick bounds check.
+	return start_of_relative_path;
+}
+
+short populate_wallpaper_cache();        // Forward declaration.
+// Functions used with inode_test_set:   // Count should match MAX_INODE_TESTS (defined above).
+short wallpaper_is_new(const file_path_t wallpaper_file_path) {
+	if (wallpaper_file_path == NULL || *wallpaper_file_path == '\0') {
+		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
+		return -1;      // Abort.
+	}
+	if (s_old_wallpaper_cache.ct == 0) {    // Populate the cache if not already done from previous call.
+		short ret;
+		if ((ret = populate_wallpaper_cache()) != 0) return ret;
+	}
+	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
+	if (!start_of_relative_path) return -1; // Abort (without reporting error for each such file).
+	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;    // Not new (continue search).
+	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
+		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;        // Not new (continue search).
+	}
+	return 1;       // Seems new.
+}
+short check_mime_type(const file_path_t filepath) {
+	struct magic_set *magic = magic_open(MAGIC_MIME_TYPE|MAGIC_CHECK);
+	magic_load(magic, NULL);
+	const char *mime_type = magic_file(magic, filepath); // Freed by magic_close.
+	if (mime_type == NULL || *mime_type == '\0') {
+		fprintf(stderr, "Failed to detect mime type for file: \"%s\"\n", filepath);
+		magic_close(magic);
+		return 0;       // Continue search.
+	}
+	const char *end_of_type = strchrnul(mime_type, '/');    // Is '/' always the delimiter?
+	unsigned short primary_type_len = end_of_type - mime_type;
+	if (strncmp(mime_type, "image", primary_type_len)) {
+		magic_close(magic);
+		return 0;       // Continue search.
+	}
+	magic_close(magic);
+	return 1;       // Mime type matches ("image").
 }
 
 
@@ -307,26 +364,6 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 		return false;
 	}
 	return true;
-}
-
-const file_path_t get_start_of_relative_path(const file_path_t full_path) {
-	// Relative paths are used to preserve functionality in the event that a user moves their root wallpaper directory.
-	assert(full_path);
-	assert(full_path[0]);
-
-	// Consolidate logic with is_path_within_path().
-	char *start_of_relative_path = strstr(full_path, get_wallpaper_path());
-	if (!start_of_relative_path) return NULL;
-
-	const size_t wpp_len = strlen(get_wallpaper_path());
-
-	// Relative path should start with a slash.
-	if (*(start_of_relative_path + wpp_len) != '/') return NULL;
-
-	//start_of_relative_path += sizeof(DEFAULT_WALLPAPER_DIR_NAME);
-	start_of_relative_path += wpp_len;
-	if (start_of_relative_path - full_path < 0) return NULL;        // Quick bounds check.
-	return start_of_relative_path;
 }
 
 static inline void populate_wallpaper_cache_entry_skipper(num_rows * const skipped_ct) {
@@ -409,42 +446,6 @@ short populate_wallpaper_cache() {
 	}
 	free_rows(rows);
 	return 0;
-}
-short wallpaper_is_new(const file_path_t wallpaper_file_path) {
-	if (wallpaper_file_path == NULL || *wallpaper_file_path == '\0') {
-		fprintf(stderr, "wallpaper_is_new was provided an empty string.\n");
-		return -1;      // Abort.
-	}
-	if (s_old_wallpaper_cache.ct == 0) {    // Populate the cache if not already done from previous call.
-		short ret;
-		if ((ret = populate_wallpaper_cache()) != 0) return ret;
-	}
-	const file_path_t start_of_relative_path = get_start_of_relative_path(wallpaper_file_path);
-	if (!start_of_relative_path) return -1; // Abort (without reporting error for each such file).
-	if (s_current_wallpaper.path && !strcmp(s_current_wallpaper.path, start_of_relative_path)) return 0;    // Not new (continue search).
-	for (unsigned int i = 0; i < s_old_wallpaper_cache.ct; i++) {
-		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, start_of_relative_path)) return 0;        // Not new (continue search).
-	}
-	return 1;       // Seems new.
-}
-
-short check_mime_type(const file_path_t filepath) {
-	struct magic_set *magic = magic_open(MAGIC_MIME_TYPE|MAGIC_CHECK);
-	magic_load(magic, NULL);
-	const char *mime_type = magic_file(magic, filepath); // Freed by magic_close.
-	if (mime_type == NULL || *mime_type == '\0') {
-		fprintf(stderr, "Failed to detect mime type for file: \"%s\"\n", filepath);
-		magic_close(magic);
-		return 0;       // Continue search.
-	}
-	const char *end_of_type = strchrnul(mime_type, '/');    // Is '/' always the delimiter?
-	unsigned short primary_type_len = end_of_type - mime_type;
-	if (strncmp(mime_type, "image", primary_type_len)) {
-		magic_close(magic);
-		return 0;       // Continue search.
-	}
-	magic_close(magic);
-	return 1;       // Mime type matches ("image").
 }
 static inline bool is_path_within_path_helper(const file_path_t const a, const file_path_t const b) {
 	const size_t b_len = strlen(b);
