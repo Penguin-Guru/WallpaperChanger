@@ -19,7 +19,6 @@ declare -a system_libs=(
 	magic
 )
 declare -a project_libs=(
-	parameters
 	verbosity
 	cli
 	libxdgbasedir
@@ -126,7 +125,7 @@ if ((! param_again)); then
 	if ((param_print_command)); then
 		echo "${cmd[*]}"
 		exit 0
-	else 
+	else
 		if ! ${cmd[*]} ; then
 			echo 'Compilation failed.'
 			exit 1
