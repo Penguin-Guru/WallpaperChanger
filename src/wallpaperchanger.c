@@ -25,6 +25,7 @@
 #include "init.h"
 #include "image.h"
 #include "flatfiledb.h"
+#include "inode_test_set.h"
 
 
 extern app_components_t app_components;
@@ -514,42 +515,6 @@ bool is_path_within_path(const file_path_t const a, const file_path_t const b) {
 
 	return is_path_within_path_helper(a, b);
 }
-#define MAX_INODE_TESTS 2
-typedef struct test_set {
-	uint_fast8_t ct;
-	short ret;
-	// Array of functions to be executed sequentially. See run_test_set below.
-	short (*test[MAX_INODE_TESTS])(const file_path_t filepath);     // Hard-coded array length is not ideal.
-} test_set;
-void append_test_to_set(struct test_set *tests, short(*test)(const file_path_t filepath)) {
-	assert(tests->ct < MAX_INODE_TESTS);
-	tests->test[tests->ct++] = test;
-}
-/*void clear_test_set(struct test_set *tests) {
-	assert(tests->ct >= 0);
-	for (uint_fast8_t i = 0; i < tests->ct; i++) tests->test[i] = NULL;
-	tests->ct = 0;
-}*/
-short run_test_set(struct test_set *tests, const file_path_t filepath) {
-	assert(tests->ct >= 0);
-	assert(tests->ct <= MAX_INODE_TESTS);
-	for (uint_fast8_t i = 0; i < tests->ct; i++)
-		// Return values:
-		// 	 1: Proceed -- file matches criteria.
-		// 	 0: Return (to continue search).
-		// 	-1: Return (to abort).
-		if ((tests->ret = tests->test[i](filepath)) != 1) break;
-	return tests->ret;
-}
-bool is_test_in_set(short(*test)(const file_path_t filepath), struct test_set *tests) {
-	assert(test);
-	static_assert(sizeof(uint_fast8_t)*8 >= MAX_INODE_TESTS, "Data type must be large enough.");
-	for (uint_fast8_t i = 0; i < tests->ct; i++) {
-		if (tests->test[i] == test) return true;
-	}
-	return false;
-}
-static struct test_set tests;  // Global struct for nftw functions. Eliminate later.
 static inline tags_t get_historic_tags_by_path(const file_path_t fp) {
 	if (s_old_wallpaper_cache.ct == 0) {
 		if (populate_wallpaper_cache() < 0) return 0;	// 0=Null.
@@ -573,6 +538,7 @@ static inline short attempt_set_wallpaper(const file_path_t fp, tags_t tags) {
 	}
 	return -1;       // Fail.
 }
+static struct inode_test_set_t tests;  // Global struct loaded before calling and then referenced within ftw function(s). Eliminate later.
 int search_for_wallpaper(
 	const char *filepath,
 	const struct stat *info,
