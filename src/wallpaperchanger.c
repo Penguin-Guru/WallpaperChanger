@@ -305,69 +305,6 @@ short check_mime_type(const file_path_t filepath) {
 	return 1;       // Mime type matches ("image").
 }
 
-
-/* Intermediary functions: */
-
-bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
-	if (verbosity) printf("Setting wallpaper: \"%s\"\n", wallpaper_file_path);
-	// This function expects the CURRENT flag to have already been set.
-	assert(tags & encode_tag(TAG_CURRENT));
-
-	if (!s_target_monitor_id) {
-		fprintf(stderr, "No target monitor. Aborting.\n");
-		return false;
-	}
-	monitor_info *target_monitor;
-	if (!(target_monitor = get_monitor_by_id(s_target_monitor_id))) {
-		fprintf(stderr, "Aborting.\n");
-		return false;
-	}
-	assert(target_monitor->name);
-	assert(target_monitor->name[0]);
-
-	// Validate strings for database format here, so we can abort before setting the wallpaper.
-	if (!validate_string_value(target_monitor->name)) {
-		fprintf(stderr,
-			"Monitor name contains invalid character(s). Aborting.\n"
-				"\tName: \"%s\"\n"
-				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
-			, target_monitor->name
-		);
-		return false;
-	}
-	format_path(wallpaper_file_path);
-	if (!validate_string_value(wallpaper_file_path)) {
-		fprintf(stderr,
-			"Wallpaper file name/path contains invalid character(s). Aborting.\n"
-				"\tFile: \"%s\"\n"
-				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
-			, target_monitor->name
-		);
-		return false;
-	}
-
-	if (!set_wallpaper(wallpaper_file_path, target_monitor)) {
-		fprintf(stderr, "Failed to set new wallpaper.\n");
-		return false;
-	}
-
-	row_t new_entry;
-	const size_t len = strlen(wallpaper_file_path);
-	if (!len) {
-		fprintf(stderr, "Invalid length for file path.\n");
-		return false;
-	}
-	new_entry.monitor_name = target_monitor->name;
-	new_entry.file = wallpaper_file_path;
-	new_entry.tags = tags;
-	assert(data_file_path);
-	if (!append_new_current(data_file_path, &new_entry)) {
-		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
-		return false;
-	}
-	return true;
-}
-
 static inline void populate_wallpaper_cache_entry_skipper(num_rows * const skipped_ct) {
 	// Memory will be resized later, with a single call.
 	(*skipped_ct)++;
@@ -522,17 +459,90 @@ static inline tags_t get_historic_tags_by_path(const file_path_t fp) {
 	if (s_old_wallpaper_cache.ct == 0) {
 		if (populate_wallpaper_cache() < 0) return 0;	// 0=Null.
 	}
+
+	const file_path_t sorp = get_start_of_relative_path(fp);
+	assert(sorp && sorp[0]);
+
 	for (size_t i = 0; i < s_old_wallpaper_cache.ct; i++) {
-		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, fp)) {
+		if (!strcmp(s_old_wallpaper_cache.wallpapers[i].path, sorp)) {
 			return s_old_wallpaper_cache.wallpapers[i].tags | encode_tag(TAG_HISTORIC);
 		}
 	}
 	return 0;	// 0=Null.
 }
+
+
+/* Intermediary functions: */
+
+bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
+	if (verbosity) printf("Setting wallpaper: \"%s\"\n", wallpaper_file_path);
+
+	// The provided value of tags is expected to be one of:
+	// 	HISTORIC (and not CURRENT), indicating that all historically associated tags are included.
+	// 	CURRENT (and not HISTORIC), indicating that the file (path) is known to be new.
+	// 	Null (0)                  , indicating unknown historic/new status.
+	assert( tags == 0 || tags ^ (encode_tag(TAG_CURRENT) | encode_tag(TAG_HISTORIC) ));
+	// If file (path) is not known to be new or historic (with tags already loaded), get historic tags.
+	if (!tags) tags = get_historic_tags_by_path(wallpaper_file_path) | encode_tag(TAG_CURRENT);
+	// Set CURRENT flag if it is not already set.
+	else if (!(tags & encode_tag(TAG_CURRENT))) tags |= encode_tag(TAG_CURRENT);
+
+	if (!s_target_monitor_id) {
+		fprintf(stderr, "No target monitor. Aborting.\n");
+		return false;
+	}
+	monitor_info *target_monitor;
+	if (!(target_monitor = get_monitor_by_id(s_target_monitor_id))) {
+		fprintf(stderr, "Aborting.\n");
+		return false;
+	}
+	assert(target_monitor->name);
+	assert(target_monitor->name[0]);
+
+	// Validate strings for database format here, so we can abort before setting the wallpaper.
+	if (!validate_string_value(target_monitor->name)) {
+		fprintf(stderr,
+			"Monitor name contains invalid character(s). Aborting.\n"
+				"\tName: \"%s\"\n"
+				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
+			, target_monitor->name
+		);
+		return false;
+	}
+	format_path(wallpaper_file_path);
+	if (!validate_string_value(wallpaper_file_path)) {
+		fprintf(stderr,
+			"Wallpaper file name/path contains invalid character(s). Aborting.\n"
+				"\tFile: \"%s\"\n"
+				"\tMust not contain any of these characters: \"" COLUMN_DELIMS "\"\n"
+			, target_monitor->name
+		);
+		return false;
+	}
+
+	if (!set_wallpaper(wallpaper_file_path, target_monitor)) {
+		fprintf(stderr, "Failed to set new wallpaper.\n");
+		return false;
+	}
+
+	row_t new_entry;
+	const size_t len = strlen(wallpaper_file_path);
+	if (!len) {
+		fprintf(stderr, "Invalid length for file path.\n");
+		return false;
+	}
+	new_entry.monitor_name = target_monitor->name;
+	new_entry.file = wallpaper_file_path;
+	new_entry.tags = tags;
+	assert(data_file_path);
+	if (!append_new_current(data_file_path, &new_entry)) {
+		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
+		return false;
+	}
+	return true;
+}
+
 static inline short attempt_set_wallpaper(const file_path_t fp, tags_t tags) {
-	// Attempts to set wallpapers that are already known to be new should set the CURRENT flag in tags.
-	assert(tags == 0 || tags & encode_tag(TAG_CURRENT));
-	if (!tags) tags = get_historic_tags_by_path(fp);
 	if (set_new_current(fp, tags)) return 1;
 	// Failed to set the wallpaper.
 	if (num_file_skips_remaining) {    // Negative also true.
@@ -558,7 +568,7 @@ int search_for_wallpaper(
 		case FTW_F: {
 			short ret;
 			if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1) {
-				// CURRENT flag may be set to prevent attempt_set_wallpaper re-testing for historic records.
+				// Set CURRENT flag to indicate when file (path) is known to be new.
 				tags_t tags = (is_test_in_set(wallpaper_is_new, &tests) ? encode_tag(TAG_CURRENT) : 0);
 				ret = attempt_set_wallpaper((const file_path_t)filepath, tags);
 			}
@@ -606,7 +616,7 @@ int search_for_wallpaper(
 					if (verbosity > 1) printf("%s -> %s\n", filepath, target);
 					ret = run_test_set(&tests, (const file_path_t)filepath);
 					if ((ret = run_test_set(&tests, (const file_path_t)filepath)) == 1) {
-						// CURRENT flag may be set to prevent attempt_set_wallpaper re-testing for historic records.
+						// Set CURRENT flag to indicate when file (path) is known to be new.
 						tags_t tags = (is_test_in_set(wallpaper_is_new, &tests) ? encode_tag(TAG_CURRENT) : 0);
 						ret = attempt_set_wallpaper((const file_path_t)filepath, tags);
 					}
@@ -662,16 +672,8 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 		case S_IFREG:
 			// Path refers to regular file.
 			// Attempt to set it as a new current wallpaper.
-
-			// Apply tags if file has been set before.
-			const file_path_t sorp = get_start_of_relative_path(target_path);
-			// Null/empty are not expected after validation with is_path_within_path.
-			assert(sorp && sorp[0]);
-			// Not using attempt_set_wallpaper because files should never need to be skipped.
-			set_new_current(
-				target_path,
-				encode_tag(TAG_CURRENT) | get_historic_tags_by_path(sorp)
-			);
+			// Not using attempt_set_wallpaper because files specified should never be skipped.
+			set_new_current(target_path, 0);
 			return true;
 		case S_IFDIR: {
 			// Path refers to a directory.
@@ -740,9 +742,7 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 					memcpy(buff, get_wallpaper_path(), upper_path_len);
 					memcpy(buff + upper_path_len, s_old_wallpaper_cache.wallpapers[i].path, lower_path_len);
 					buff[upper_path_len + lower_path_len] = '\0';
-					// Wallpaper path is known to be historic. Also set CURRENT flag, as expected by attempt_set_wallpaper.
-					const tags_t circumstantial_tags = encode_tag(TAG_HISTORIC) | encode_tag(TAG_CURRENT);
-					switch (attempt_set_wallpaper(buff, circumstantial_tags | s_old_wallpaper_cache.wallpapers[i].tags)) {
+					switch (attempt_set_wallpaper(buff, encode_tag(TAG_HISTORIC) | s_old_wallpaper_cache.wallpapers[i].tags)) {
 						case 0 : continue;
 						case 1 : return true;
 						default: break;  // Fail.
@@ -835,9 +835,7 @@ bool handle_set_fav(const arg_list_t * const al) {
 	}
 	do {
 		assert(favs->row[i]->file);
-		assert(n_criteria & encode_tag(TAG_CURRENT));
-		assert(n_criteria & encode_tag(TAG_HISTORIC));
-		switch (attempt_set_wallpaper(favs->row[i]->file, favs->row[i]->tags | n_criteria)) {
+		switch (attempt_set_wallpaper(favs->row[i]->file, encode_tag(TAG_HISTORIC) | favs->row[i]->tags)) {
 			case 0 :
 				assert(ret == false);
 				if (++i == favs->ct) i = 0;
