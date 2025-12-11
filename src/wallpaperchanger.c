@@ -310,6 +310,8 @@ short check_mime_type(const file_path_t filepath) {
 
 bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 	if (verbosity) printf("Setting wallpaper: \"%s\"\n", wallpaper_file_path);
+	// This function expects the CURRENT flag to have already been set.
+	assert(tags & encode_tag(TAG_CURRENT));
 
 	if (!s_target_monitor_id) {
 		fprintf(stderr, "No target monitor. Aborting.\n");
@@ -357,7 +359,7 @@ bool set_new_current(const file_path_t wallpaper_file_path, tags_t tags) {
 	}
 	new_entry.monitor_name = target_monitor->name;
 	new_entry.file = wallpaper_file_path;
-	new_entry.tags = tags | encode_tag(TAG_CURRENT);        // Make sure it's tagged as current.
+	new_entry.tags = tags;
 	assert(data_file_path);
 	if (!append_new_current(data_file_path, &new_entry)) {
 		fprintf(stderr, "Failed to append new current wallpaper to database.\n");
@@ -658,16 +660,18 @@ bool handle_set(const arg_list_t * const al) {  // It would be nice if this were
 	}
 	switch (statbuff.st_mode & S_IFMT) {
 		case S_IFREG:
-			// Path refers to regular file. Attempt to use it.
+			// Path refers to regular file.
+			// Attempt to set it as a new current wallpaper.
 
 			// Apply tags if file has been set before.
 			const file_path_t sorp = get_start_of_relative_path(target_path);
-			assert(sorp && sorp[0]);        // Already confirmed that target_path is within wallpaper_path.
-			const tags_t tags = encode_tag(TAG_CURRENT) | get_historic_tags_by_path(sorp);
-
-			//target_wallpaper = target_path;
-			//break;
-			set_new_current(target_path, tags);
+			// Null/empty are not expected after validation with is_path_within_path.
+			assert(sorp && sorp[0]);
+			// Not using attempt_set_wallpaper because files should never need to be skipped.
+			set_new_current(
+				target_path,
+				encode_tag(TAG_CURRENT) | get_historic_tags_by_path(sorp)
+			);
 			return true;
 		case S_IFDIR: {
 			// Path refers to a directory.
