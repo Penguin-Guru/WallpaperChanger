@@ -49,7 +49,8 @@ bool validate_row(const row_t *r);
 
 typedef uint_fast8_t token_length_t;
 tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]);
-tags_t encode_tag(enum Tag tag);
+#define encode_tag(t) (encode_tag(t))
+tags_t (encode_tag)(enum Tag tag);	// Compile-time macro should be preferred.
 void gen_tag_string(char *string, tags_t tags);
 
 row_t* get_row_if_match(

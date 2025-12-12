@@ -61,7 +61,7 @@ tags_t get_tag_mask(const char column_string[MAX_COLUMN_LENGTH]) {
 
 	return ret;
 }
-inline tags_t encode_tag(enum Tag tag) {
+inline tags_t (encode_tag)(enum Tag tag) {	// Compile-time macro should be preferred.
 	return 1<<tag;
 }
 void gen_tag_string(char *string, tags_t tags) {
