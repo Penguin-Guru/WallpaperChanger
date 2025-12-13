@@ -166,8 +166,11 @@ image_t* get_pixel_data(
 		FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK,
 		true    // Top-down. Set false to flip vertically.
 	);
-	if (!bits) {
+	if (!(bits && bits[img->data_len - 1])) {
 		fprintf(stderr, "Failed to read image data.\n");
+		if (!bits[img->data_len - 1]) {
+			fprintf(stderr, "\tImage file appears corrupt/incomplete.\n");
+		}
 		free(img);
 		FreeImage_Unload(bitmap);
 		FreeImage_DeInitialise();
