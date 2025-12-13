@@ -208,6 +208,12 @@ static inline file_path_t validate_directory(file_path_t path, const char * cons
 	if (!is_file_accessible(path, "X")) {
 		return validate_directory_failed("Denied permission to search", path, name, do_reset, do_free);
 	}
+	for (char *i = path + 1; i != path + strlen(path); i++) {
+		if (*i != '/') continue;
+		// Ignore previous slash if it was escaped by a backslash.
+		if (*(i-1) == '/' && *(i-2) != '\\')
+			return validate_directory_failed("Multiple consecutive forward slashes are invalid in", path, name, do_reset, do_free);
+	}
 	return path;
 }
 
@@ -225,7 +231,6 @@ static file_path_t get_data_directory() {
 }
 static file_path_t get_wallpaper_path() {
 	if (wallpaper_path) {
-		assert(wallpaper_path[0]);
 		return wallpaper_path;
 	}
 
@@ -234,7 +239,13 @@ static file_path_t get_wallpaper_path() {
 	size_t len;
 	if ((len = strlen(dd)) == 0) return NULL;
 
-	assert(DEFAULT_WALLPAPER_DIR_NAME[sizeof(DEFAULT_WALLPAPER_DIR_NAME)-1] == '\0');
+	assert(
+		   (sizeof(DEFAULT_WALLPAPER_DIR_NAME) == 1 && DEFAULT_WALLPAPER_DIR_NAME[0] == '\0')
+		|| (sizeof(DEFAULT_WALLPAPER_DIR_NAME)  > 1 && (
+			   DEFAULT_WALLPAPER_DIR_NAME[sizeof(DEFAULT_WALLPAPER_DIR_NAME) - 2] != '/'
+			|| DEFAULT_WALLPAPER_DIR_NAME[1] != '/'
+		   ))
+	); // DEFAULT_WALLPAPER_DIR_NAME must not begin or end with a slash.
 	wallpaper_path = (file_path_t)malloc(len+1+sizeof(DEFAULT_WALLPAPER_DIR_NAME));
 	memcpy(wallpaper_path, dd, len);
 	// Add slash only if not already present.
@@ -1028,6 +1039,12 @@ bool handle_wallpaper_path(const arg_list_t * const al) {
 	assert(al->args[0]);
 
 	if (!(wallpaper_path = validate_directory(al->args[0], "wallpaper", false, false))) return false;
+
+	// Make sure wallpaper_path does not end with a slash.
+	const size_t len = strlen(wallpaper_path);
+	if (wallpaper_path[len - 1] == '/') {
+		wallpaper_path[len - 1] = '\0';
+	}
 
 	if (verbosity > 1) printf("Using specified wallpaper path: \"%s\"\n", wallpaper_path);
 	return true;

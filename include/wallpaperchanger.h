@@ -36,7 +36,7 @@
 #include "util.h"
 
 #define DEFAULT_DATA_FILE_NAME "wallpapers.log"
-#define DEFAULT_WALLPAPER_DIR_NAME "wallpapers"
+#define DEFAULT_WALLPAPER_DIR_NAME "wallpapers"	// Must not begin or end with a slash.
 
 
 // Directory containing default data_file_path and wallpaper_path.
