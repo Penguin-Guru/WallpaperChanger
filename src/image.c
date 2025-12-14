@@ -7,11 +7,18 @@
 
 #include <stdlib.h>     // For malloc and free.
 #include <stdio.h>      // For (f)printf.
+#include <stdbool.h>
 #include <FreeImage.h>
 #include "image.h"
 #include "verbosity.h"
 
 
+
+/*/
+ * Global variable is used because I have not found a better mechanism to handle certain errors.
+ * 	For example, cases when the source file data is incomplete.
+/*/
+static bool error_has_occurred = false;
 
 /*/
  * This handler function is from FreeImage's documentation.
@@ -20,6 +27,7 @@
  * @param message Error message
 /*/
 static void FreeImageErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) {
+	error_has_occurred = true;
 	printf("\n*** FreeImage error:\n");
 	if (fif != FIF_UNKNOWN) printf("\tFormat: %s\n", FreeImage_GetFormatFromFIF(fif));
 	printf("\t%s\n", message);
@@ -61,8 +69,9 @@ image_t* get_pixel_data(
 	FreeImage_Initialise(true);     // True will only load local plugins.
 	FreeImage_SetOutputMessage(FreeImageErrorHandler);
 	FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(wallpaper_file_path, 0);
+	// FreeImage_LoadU, the version that supports unicode, is only available for Windows.
 	FIBITMAP *bitmap = FreeImage_Load(fif, wallpaper_file_path, 0);
-	if (!bitmap) {
+	if (!bitmap || error_has_occurred) {
 		fprintf(stderr, "Failed to load file as image: \"%s\"\n", wallpaper_file_path);
 		FreeImage_DeInitialise();
 		return NULL;
@@ -166,11 +175,8 @@ image_t* get_pixel_data(
 		FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK,
 		true    // Top-down. Set false to flip vertically.
 	);
-	if (!(bits && bits[img->data_len - 1])) {
+	if (!bits) {
 		fprintf(stderr, "Failed to read image data.\n");
-		if (!bits[img->data_len - 1]) {
-			fprintf(stderr, "\tImage file appears corrupt/incomplete.\n");
-		}
 		free(img);
 		FreeImage_Unload(bitmap);
 		FreeImage_DeInitialise();
