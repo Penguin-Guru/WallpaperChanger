@@ -7,34 +7,6 @@
 #include "argument.h"
 
 
-static inline void print_invalid(const char* const term) {
-	fprintf(stderr, "Invalid parameter: %s\n", term);
-}
-
-static inline void print_arg_mismatch(param_name name, const param_arg_parameters_t arg_params, const param_arg_ct provided) {
-	if (arg_params.min == arg_params.max) {
-		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
-				"\tTerms expected: %hu\n"
-				"\tTerms provided: %hu\n"
-			,
-			name,
-			arg_params.min,
-			provided
-		);
-	} else {
-		fprintf(stderr, "Missing expected term for flag/parameter: \"%s\"\n"
-				"\tTerms expected: %hu -- %hu\n"
-				"\tTerms provided: %hu\n"
-			,
-			name,
-			arg_params.min,
-			arg_params.max,
-			provided
-		);
-	}
-}
-
-
 parameter_t *param_buff = NULL;
 arg_list_t args_buff = {};
 

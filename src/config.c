@@ -49,7 +49,10 @@ bool parse_config_line(const char * const line) {
 				break;
 			}
 		}
-		if (!param) return false;
+		if (!param) {
+			print_invalid(label);
+			return false;
+		}
 
 		// Now we know how many terms/arguments the operation/parameter expects.
 		param_arg_ct etc = param->arg_params.max;
@@ -120,14 +123,10 @@ bool parse_config_line(const char * const line) {
 			// wordfree(&shell_expanded) would supposedly only free the value string, which we need. Free later.
 		}
 		if (arg_ct < param->arg_params.min || arg_ct > etc) {
-			fprintf(stderr,
-				"Config: Invalid number of arguments for parameter \"%s\" (\"%s\").\n"
-					"\tFound: %hu\n"
-					"\tExpected: %hu\n"
-				,
-				param->flag_pair.long_flag, param->handler_set.name,
-				arg_ct,
-				etc
+			print_arg_mismatch(
+				param->handler_set.name,
+				param->arg_params,
+				arg_ct
 			);
 			return false;
 		}
