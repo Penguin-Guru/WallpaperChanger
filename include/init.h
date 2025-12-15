@@ -69,7 +69,6 @@ static inline parameter_t * match_long_param(const long_flag_t arg) {
 
 
 bool register_param(parameter_t *p, const arg_list_t * const al, const enum LoadSource load_source);
-void free_param_args(param_arg_ct num_args, argument *args);
 void free_params(handler_set_list_t *list);
 
 bool init(int argc, char** argv);
