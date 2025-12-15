@@ -47,8 +47,8 @@ bool parse_config_line(const char * const line) {
 
 
 		// Now we know how many terms/arguments the operation/parameter expects.
-		param_arg_ct etc = param->arg_params.max;
-		argument args[etc];
+		param_arg_ct max_accepted_terms = param->arg_params.max;
+		argument args[max_accepted_terms];
 
 		// Parse the terms/arguments.
 		char *buff = NULL, *saveptr;
@@ -56,7 +56,7 @@ bool parse_config_line(const char * const line) {
 		wordexp_t shell_expanded;
 		for(
 			buff = strtok_r(op+1, VALUE_DELIMS, &saveptr)
-			;buff != NULL && arg_ct <= etc;
+			;buff != NULL && arg_ct <= max_accepted_terms;
 			buff = strtok_r(NULL, VALUE_DELIMS, &saveptr)
 		) {
 			if (strlen(buff) >= MAX_CONFIG_COLUMN_LENGTH) {
@@ -114,7 +114,7 @@ bool parse_config_line(const char * const line) {
 			args[arg_ct++] = shell_expanded.we_wordv[0];
 			// wordfree(&shell_expanded) would supposedly only free the value string, which we need. Free later.
 		}
-		if (arg_ct < param->arg_params.min || arg_ct > etc) {
+		if (arg_ct < param->arg_params.min || arg_ct > max_accepted_terms) {
 			print_arg_mismatch(
 				param->handler_set.name,
 				param->arg_params,
@@ -122,8 +122,8 @@ bool parse_config_line(const char * const line) {
 			);
 			return false;
 		}
-		if (arg_ct < etc) {
-			for (param_arg_ct i = arg_ct; i < etc; i++) args[i] = NULL;
+		if (arg_ct < max_accepted_terms) {
+			for (param_arg_ct i = arg_ct; i < max_accepted_terms; i++) args[i] = NULL;
 		}
 
 		// Register the operation/parameter for execution.
