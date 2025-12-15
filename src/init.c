@@ -55,7 +55,7 @@ bool handle_print_help(const arg_list_t * const al) {
 	exit(0);        // EXIT_SUCCESS.
 }
 
-void free_params(handler_set_list_t *list) {
+static inline void free_params(handler_set_list_t *list) {
 	for (param_ct p = 0; p < list->ct; p++) {
 		free_args(list->hs[p]->arg_list);
 	}
