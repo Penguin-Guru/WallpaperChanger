@@ -65,36 +65,6 @@ static inline bool process_matched_param(parameter_t *param) {
 	return true;
 }
 
-static parameter_t * match_short_param(const short_flag_t arg) {
-	// Support multi-character short flags (for now).
-	for (
-		parameter_t * check_param = params_known;
-		check_param != params_known + num_params_known;
-		check_param++
-	) {
-		if (
-			check_param->flag_pair.short_flag != NULL
-			&& !strcmp(check_param->flag_pair.short_flag, arg)
-		) return check_param;
-	}
-	print_invalid(arg);
-	return NULL;
-}
-static parameter_t * match_long_param(const long_flag_t arg) {
-	for (
-		parameter_t * check_param = params_known;
-		check_param != params_known + num_params_known;
-		check_param++
-	) {
-		if (
-			check_param->flag_pair.long_flag != NULL
-			&& !strcmp(check_param->flag_pair.long_flag, arg)
-		) return check_param;
-	}
-	print_invalid(arg);
-	return NULL;
-}
-
 bool parse_params(int argc, char** argv) {
 	for (unsigned short i = 1; i < argc; i++) {
 		//argv++;

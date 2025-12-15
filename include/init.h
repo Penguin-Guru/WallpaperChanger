@@ -38,6 +38,34 @@ static inline void print_arg_mismatch(const param_name name, const param_arg_par
 		);
 	}
 }
+static inline parameter_t * match_short_param(const short_flag_t arg) {
+	for (
+			parameter_t * check_param = params_known;
+			check_param != params_known + num_params_known;
+			check_param++
+	    ) {
+		if (
+				check_param->flag_pair.short_flag != NULL
+				&& !strcmp(check_param->flag_pair.short_flag, arg)
+		   ) return check_param;
+	}
+	print_invalid(arg);
+	return NULL;
+}
+static inline parameter_t * match_long_param(const long_flag_t arg) {
+	for (
+			parameter_t * check_param = params_known;
+			check_param != params_known + num_params_known;
+			check_param++
+	    ) {
+		if (
+				check_param->flag_pair.long_flag != NULL
+				&& !strcmp(check_param->flag_pair.long_flag, arg)
+		   ) return check_param;
+	}
+	print_invalid(arg);
+	return NULL;
+}
 
 
 bool register_param(parameter_t *p, const arg_list_t * const al, const enum LoadSource load_source);

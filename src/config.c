@@ -42,17 +42,9 @@ bool parse_config_line(const char * const line) {
 		label[len] = '\0';
 
 		// Identify the operation/parameter (label).
-		parameter_t *param = NULL;
-		for (param_ct i = 0; i < num_params_known; i++) {
-			if (!strcmp(label, params_known[i].flag_pair.long_flag)) {
-				param = &params_known[i];
-				break;
-			}
-		}
-		if (!param) {
-			print_invalid(label);
-			return false;
-		}
+		parameter_t *param;
+		if (!(param = match_long_param(label))) return false;
+
 
 		// Now we know how many terms/arguments the operation/parameter expects.
 		param_arg_ct etc = param->arg_params.max;
