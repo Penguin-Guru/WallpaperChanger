@@ -35,18 +35,18 @@ static inline bool push_param(parameter_t *param) {
 }
 static inline bool push_param_if_terms_pending(const uint_fast8_t terms_pending, parameter_t *param) {
 	if (terms_pending == 0) return true;
-	if (args_buff.ct < param_buff->arg_params.min) {
+	if (args_buff.ct < param->arg_params.min) {
 		// A flag was not expected. Missing term(s).
 		print_arg_mismatch(
-			param_buff->handler_set.name,
-			param_buff->arg_params,
+			param->handler_set.name,
+			param->arg_params,
 			args_buff.ct
 		);
 		free_args(&args_buff);
 		return false;
 	}
 	// Minimum acceptable number of terms for previous flag have been provided.
-	if (!push_param(param_buff)) return false;
+	return push_param(param);
 }
 
 static inline bool process_matched_param(parameter_t *param) {
