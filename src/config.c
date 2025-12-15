@@ -36,7 +36,7 @@
 bool parse_config_line(const char * const line) {
 	char *op;
 	if ((op = strpbrk(line, KEY_VALUE_DELIMS))) {
-		uint_fast16_t len = op - line;  // Data type limits max row length.
+		const uint_fast16_t len = op - line;  // Data type limits max row length.
 		char label[len];
 		memcpy(label, line, len);
 		label[len] = '\0';
@@ -59,7 +59,8 @@ bool parse_config_line(const char * const line) {
 			;buff != NULL && arg_ct <= max_accepted_terms;
 			buff = strtok_r(NULL, VALUE_DELIMS, &saveptr)
 		) {
-			if (strlen(buff) >= MAX_CONFIG_COLUMN_LENGTH) {
+			const size_t buff_len = strlen(buff);
+			if (buff_len >= MAX_CONFIG_COLUMN_LENGTH) {
 				fprintf(stderr,
 					"Column in config file exceeds maximum supported length. Aborting execution.\n"
 					"\t         Column text: \"%s\"\n"
@@ -76,8 +77,8 @@ bool parse_config_line(const char * const line) {
 				((unsigned short)floorf(powf(2,(sizeof(uint_fast8_t)*8)))) >= MAX_CONFIG_COLUMN_LENGTH,
 				"Data type of \"skip\" must be sized to fit potential column length"
 			);
-			uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
-			if (strlen(buff) == skip) continue;
+			const uint_fast8_t skip = strspn(buff, KEY_VALUE_DELIMS);
+			if (skip == buff_len) continue;
 
 			int wordexp_error;
 			if ((wordexp_error = wordexp(buff + skip, &shell_expanded, 0))) {
