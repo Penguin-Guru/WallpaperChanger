@@ -48,9 +48,11 @@ typedef struct {
 	arg_list_t *arg_list;   // Heap.
 } handler_set_t;
 
-typedef char* const flag_t;
-typedef flag_t long_flag_t;     // Support multi-character short flags (for now).
-typedef flag_t short_flag_t;
+typedef const char* flag_str_t;	// Pointer not const for assignment in flag_t struct.
+// Long and short types are used for literal definition of parameters.
+// Consider deprecating in favour of flag_t struct.
+typedef flag_str_t const long_flag_t;     // Support multi-character short flags (for now).
+typedef flag_str_t const short_flag_t;
 typedef struct {
 	const long_flag_t long_flag;
 	const short_flag_t short_flag;
@@ -109,4 +111,19 @@ typedef struct {
 	// Is that double pointer necessary?
 	param_ct ct;
 } handler_set_list_t;
+
+
+// Currently only used for C.L.I. parsing:
+enum Flag_Type {
+	FLAG_TYPE_UNKNOWN = 0,
+	FLAG_TYPE_SHORT,
+	FLAG_TYPE_LONG,
+	FLAG_END_PARAMETERS	// Positional signal to stop processing further parameters.
+};
+typedef struct {
+	flag_str_t str;
+	enum Flag_Type type;
+	char *conjoined_terms;
+	parameter_t *param;
+} flag_t;
 

@@ -23,11 +23,6 @@
 #include "argument.h"
 #include "parameter.h"
 
-#define SPACE_AND_TAB " \t"
-#define WHITESPACE_CHARACTERS SPACE_AND_TAB "\r\n\v\f"
-#define KEY_VALUE_DELIMS "=:" WHITESPACE_CHARACTERS
-#define VALUE_DELIMS ",;" WHITESPACE_CHARACTERS
-
 // This is sized to contain the max value for data type of "skip" in parse_config_line().
 // 255 = floorf(powf(2, sizeof(uint_fast8_t)*8))-1      // -1 to exclude 0 from count.
 #define MAX_CONFIG_COLUMN_LENGTH 255
@@ -43,7 +38,9 @@ bool parse_config_line(const char * const line) {
 
 		// Identify the operation/parameter (label).
 		parameter_t *param;
-		if (!(param = match_long_param(label))) return false;
+		if (!(param = match_param(
+			&(flag_t){.str = label, .type = FLAG_TYPE_LONG}
+		))) return false;
 
 
 		// Now we know how many terms/arguments the operation/parameter expects.
