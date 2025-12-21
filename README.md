@@ -26,7 +26,7 @@ Currently, the only database format supported is a flat text file. This is my pe
 When looking for images on the file system, the default path is: `$XDG_DATA_HOME/wallpapers/`. The program will sometimes complain if any entries in the database point outside of that path-- this is a safety mechanism. Symlinks to files are always followed and symlinks to directories can be followed if requested.
 
 A config file is supported but not required. By default, the file should be `$XDG_CONFIG_HOME/wallpaper-changer.conf`. It is read line by line from top to bottom and left to right. Each line should contain the following elements in order:
-1. A long-form parameter key (without the hyphens).
+1. A long-form parameter key (without the two hyphen prefix).
 2. A key/value delimiter, which may be either a colon, an equals symbol, or whitespace.
 3. A list of values, read from left to right, each separated by a comma, a semicolon, or whitespace.
 
