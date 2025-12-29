@@ -52,10 +52,11 @@ static inline bool process_matched_param(parameter_t *param, arg_list_t * const 
 bool add_arg_to_buffer(arg_list_t * const args_buff, const char * const arg) {
 	assert(args_buff);
 	assert(arg);
+
 	const size_t len = strlen(arg);
 	if (len == 0) {
-		fprintf(stderr, "Encountered empty string argument. This is not currently supported.\n");
-		return false;
+		// Empty strings are translated to null pointers.
+		args_buff->args[args_buff->ct++] = NULL;
 	}
 
 	char *arg_buff = (char*)malloc(len+1);
@@ -103,8 +104,11 @@ bool parse_flag(const char * const argvi, flag_t * const flag, arg_list_t * cons
 	assert(flag);
 	assert(args_buff);
 	if (argvi[1] == '-') {  // Long form flag ("--").
-		// If parameter is only two hyphens, respect convention to stop processing parameters.
-		if (argvi[2] == '\0') return true;
+		if (argvi[2] == '\0') {
+			// If parameter is only two hyphens, respect convention to stop processing parameters.
+			flag->type = FLAG_END_PARAMETERS;
+			return true;
+		}
 		flag->str = argvi + 2;
 		flag->type = FLAG_TYPE_LONG;
 	} else {                // Short-form flag ("-").
@@ -137,10 +141,13 @@ bool parse_params(int argc, char** argv) {
 	parameter_t *param_buff = NULL;
 	arg_list_t args_buff = {};
 
+	// Allows any following arguments to be parsed as terms,
+	// 	even if they would otherwise be parsed as flags.
+	bool received_end_flags_signal = false;
+
 	const char *argvi, * const argv_end = argv[argc];
 	while ((argvi = *(++argv)) != argv_end) {	// Intentionally skipping argv[0].
 		assert(argvi);
-		assert(*argvi != '\0');
 
 		// Check whether the argument is a "flag" or a "term". By our definition, ...
 		// 	"Flags" begin with (and are not only) a single hyphen.
@@ -149,7 +156,12 @@ bool parse_params(int argc, char** argv) {
 		// 		They are, with one exception, supplied as arguments to functions.
 		// 		The one exception is a term of only and exactly two hyphens.
 		// 			This is a conventional signal to positionally end C.L.I. parsing.
-		if (argvi[0] != '-' || argvi[1] == '\0') {
+		assert(argvi[0] != '\0' || argvi + 1);
+		if (
+			argvi[0] != '-' || argvi[1] == '\0'
+			//argvi[0] != '-' || argvi[0] == '\0' || argvi[1] == '\0'
+			|| received_end_flags_signal	// Conditionally accept would-be flags as terms.
+		) {
 			// We now know that the parameter is a "(non-conjoined) term".
 			// Non-conjoined terms should be associated with a buffered parameter.
 			// This includes cases where the entire argument is a single hyphen.
@@ -165,7 +177,7 @@ bool parse_params(int argc, char** argv) {
 				}
 				continue;
 			}
-			print_invalid(argvi, param_buff, &args_buff);
+			print_invalid(argvi, param_buff, &args_buff, received_end_flags_signal);
 			return false;
 		}
 		// We now know that the parameter is a "flag".
@@ -184,6 +196,11 @@ bool parse_params(int argc, char** argv) {
 			fprintf(stderr, "Failed to parse flag: \"%s\"\n", argvi);
 			return false;
 		}
+		assert(param_buff);
+		if (
+			flag.type == FLAG_END_PARAMETERS
+			|| param_buff->must_end_cli_flag_parsing
+		) received_end_flags_signal = true;
 	}
 	// Done parsing.
 	// Push any remaining buffer.

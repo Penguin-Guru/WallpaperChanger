@@ -54,6 +54,90 @@ bool handle_print_help(const arg_list_t * const al) {
 	printf("\n");
 	exit(0);        // EXIT_SUCCESS.
 }
+static inline void print_all_raw_parameters() {
+	const flag_pair_t *flags;
+	for (param_ct i = 0; i < num_params_known; i++) {
+		flags = &params_known[i].flag_pair;
+		if (flags->long_flag) printf("--%s\n", flags->long_flag);
+		if (flags->short_flag) printf("-%s\n", flags->short_flag);
+	}
+}
+bool handle_print_raw_parameters(const arg_list_t * const al) {
+	// Bool return type only due to type of handler function pointer. Not used.
+	const flag_pair_t *flags;
+
+	if (!al) {
+		// No filter string was provided.
+		print_all_raw_parameters();
+		exit(0);	// EXIT_SUCCESS.
+	}
+
+	const char * query;	// Used to filter by string comparison.
+	// Select argument/term expected to be a query string.
+	switch (al->ct) {
+		case 1:
+			// Use only argument/term provided.
+			query = al->args[0];
+			break;
+		case 2:	// Flow into next case.
+		case 3:
+			// Use the second argument/term provided.
+			query = al->args[1];
+			break;
+		default:
+			// This should not be possible.
+			// 	Max accepted for this parameter should be hard-coded as 3.
+			// 	Not currently convenient to (static_)assert for it.
+			fprintf(stderr, "Unexpected number of arguments/terms provided to handle_print_raw_parameters.\n");
+			exit(1);
+	}
+
+	if (!(query && query[0])) {
+		// No string to filter by.
+		print_all_raw_parameters();
+		exit(0);	// EXIT_SUCCESS.
+	}
+
+	// A filter string was provided.
+	// 	We expect it to be a flag, prefixed with one or two hyphens.
+	if (*query++ != '-') exit(0);	// Query is not prefixed by any hyphens-- it is not a flag.
+	// Since the first char was a hyphen, we've skipped past it.
+
+	if (*query == '-') {
+		// The next char is also a hyphen-- we are looking for a long flag.
+		query++;	// Skip that second hyphen.
+		const size_t query_len = strlen(query);
+		for (param_ct i = 0; i < num_params_known; i++) {
+			flags = &params_known[i].flag_pair;
+			if (
+				flags->long_flag
+				&& !strncmp(flags->long_flag, query, query_len)
+			) printf("--%s\n", flags->long_flag);
+		}
+		exit(0);	// EXIT_SUCCESS.
+	}
+	// There was only one leading hyphen.
+
+	if (query[0] == '\0') {
+		// There is no string to filter by after that one hyphen.
+		// One hyphen could be the beginning of a short or long flag.
+		// Note: a null filter may have previously auto-completed to the first hyphen.
+		print_all_raw_parameters();
+		exit(0);	// EXIT_SUCCESS.
+	}
+	// There is a string to filter by after that one hyphen.
+	// 	This means we are looking for a short flag.
+
+	const size_t query_len = strlen(query);
+	for (param_ct i = 0; i < num_params_known; i++) {
+		flags = &params_known[i].flag_pair;
+		if (
+			flags->short_flag
+			&& !strncmp(flags->short_flag, query, query_len)
+		) printf("-%s\n", flags->short_flag);
+	}
+	exit(0);	// EXIT_SUCCESS.
+}
 
 static inline void free_params(handler_set_list_t *list) {
 	for (param_ct p = 0; p < list->ct; p++) {

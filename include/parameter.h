@@ -103,6 +103,7 @@ typedef struct {
 	enum ParamType type;
 	const app_components_t requirements;
 	enum LoadSource previous_load;
+	bool must_end_cli_flag_parsing;	// Parse any later parameters as terms, not flags.
 } parameter_t;  // Parameter definition. param_def_t
 
 typedef uint_fast8_t param_ct;  // Limits the number of parameters the application may accept.

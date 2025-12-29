@@ -76,7 +76,7 @@ Depending on how your system libraries are packaged, you may need to change the 
 
 For our purposes, "installation" just means moving the (single) compiled program file into a directory referenced by your system's "path" (`$PATH`). This allows the program to be run by name, without specifying the full path to the file. The [conventional](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard) directory would be `/usr/local/bin/`.
 
-Bash users with Readline may enable rudimentary auto-completion by sourcing or otherwise loading the file, "auto-complete.bash", which is provided with this program. This is currently not enabled by default because it may have some unintended effects related to path scoping (see issue [#13](https://github.com/Penguin-Guru/WallpaperChanger/issues/13)).
+Bash users (with Readline) may enable rudimentary auto-completion by sourcing (`source`) the files in "[auto-completion/bash/](auto-completion/bash/)" or copying them to a directory where such files are automatically loaded. Note that auto-completion for the build script may have some unintended effects related to path scoping ([#13](https://github.com/Penguin-Guru/WallpaperChanger/issues/13)).
 
 ## Development:
 

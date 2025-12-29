@@ -18,9 +18,14 @@ extern uint_fast8_t num_config_files_loaded;
 
 
 static inline parameter_t * match_param(flag_t * const flag);	// Defined later in this file.
-static inline void print_invalid(const char* const term, const parameter_t * const param, const arg_list_t * const args_buff) {
+static inline void print_invalid(
+	const char* const term,
+	const parameter_t * const param,
+	const arg_list_t * const args_buff,
+	const bool received_end_flags_signal
+) {
 	fprintf(stderr, "Invalid parameter: %s\n", term);
-	{
+	if (!received_end_flags_signal) {
 		// Test whether the term would have been valid as a flag (long or short).
 		flag_t would_be_flag = {.str = term, .type = FLAG_TYPE_UNKNOWN};
 		const parameter_t * const would_be_param = match_param(&would_be_flag);
@@ -53,6 +58,22 @@ static inline void print_invalid(const char* const term, const parameter_t * con
 				"\t\tThis would be term number: %hu\n"
 				, args_buff->ct + 1
 			);
+		}
+		if (received_end_flags_signal && term[0] == '-') {
+			fprintf(stderr,
+				//"\tIt was interpreted as a term rather than a flag.\n"
+				"\tWas it supposed to be interpreted as a flag rather than a term?\n"
+			);
+			if (param->must_end_cli_flag_parsing) {
+				fprintf(stderr,
+					"\t\tFlag parsing was previously terminated by parameter (\"%s\").\n"
+					, param->handler_set.name
+				);
+			} else {
+				fprintf(stderr,
+					"\t\tFlag parsing was previously terminated, and not by a parameter. Presumably: \" -- \".\n"
+				);
+			}
 		}
 	}
 }
@@ -164,15 +185,12 @@ static inline parameter_t * match_param(flag_t * const flag) {
 			assert(flag->param == NULL);
 		// No need for default case. Function end returns failure.
 	}
-	assert(
-			flag->param != NULL && (
-				flag->type == FLAG_TYPE_LONG
-				|| flag->type == FLAG_TYPE_SHORT
-			)
-		||
-			flag->param == NULL
-			&& flag->type == FLAG_TYPE_UNKNOWN
-	);
+	if (
+		flag->param == NULL
+		&&
+			flag->type == FLAG_TYPE_LONG
+			|| flag->type == FLAG_TYPE_SHORT
+	) flag->type = FLAG_TYPE_UNKNOWN;
 	return flag->param;	// May be NULL if initial case was FLAG_TYPE_UNKNOWN.
 }
 

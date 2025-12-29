@@ -22,6 +22,7 @@ bool handle_target_monitor(const arg_list_t * const al);
 
 bool handle_config_file(const arg_list_t * const al);
 bool handle_verbosity(const arg_list_t * const al);
+bool handle_print_raw_parameters(const arg_list_t * const al);
 bool handle_print_help(const arg_list_t * const al);
 
 
@@ -363,6 +364,30 @@ parameter_t params_known[] = {  // Accessible via both C.L.I. and config file.
 		.previous_load = NONE
 	},
 
+	{
+		.handler_set = (handler_set_t){
+			.name           = "print-raw-parameters",
+			.description    =
+				"Print only parameter flags, for shell auto-completion."
+					"\n\t\t\tAll parameters specified after this are treated as terms, not flags."
+					"\n\t\t\tThis functionality may be removed if and when it is no longer needed."
+				,
+			.fn             = handle_print_raw_parameters,
+			.arg_list       = 0     // Null.
+		},
+		.flag_pair = (flag_pair_t){
+			.long_flag      = "print-raw-parameters",
+			.short_flag     = NULL
+		},
+		.arg_params = (param_arg_parameters_t){
+			.min            = 0,
+			.max            = 3
+		},
+		.type = INIT,
+		.requirements = COMPONENT_NONE,
+		.previous_load = NONE,
+		.must_end_cli_flag_parsing = true
+	},
 	{
 		.handler_set = (handler_set_t){
 			.name           = "print-help",
