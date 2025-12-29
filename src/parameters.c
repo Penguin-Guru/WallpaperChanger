@@ -303,7 +303,8 @@ parameter_t params_known[] = {  // Accessible via both C.L.I. and config file.
 	{
 		.handler_set = (handler_set_t){
 			.name           = "max-file-skips",
-			.description    = "Specify the maximum number of wallpaper files that may be skipped due to errors."
+			.description    =
+				"Specify the maximum number of wallpaper files that may be skipped due to errors."
 					"\n\t\t\tThe number must be an integer that fits within the bounds of your computer's \"long\" data type."
 					"\n\t\t\tAll negative values are interpreted as infinite."
 					"\n\t\t\tNegative numbers may be preceeded by the '#' symbol, to avoid C.L.I. parsing them as parameter flags."
