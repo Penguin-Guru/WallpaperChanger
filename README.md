@@ -45,7 +45,7 @@ Currently, wallpaper file paths must not contain tab or new-line characters. Thi
 
 ## Requirements:
 
-This will only work on (more or less) POSIX systems and I have only tested it on Linux. I have also only tested it with Xorg, but it *might* work with Wayland.
+This will only work on (more or less) POSIX systems and I have only tested it on Linux. It does not seem to work with Xwayland (https://github.com/Penguin-Guru/WallpaperChanger/issues/15).
 
 ### Libraries:
 - xcb
